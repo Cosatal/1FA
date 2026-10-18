@@ -9,6 +9,8 @@ A free, all-in-one Discord bot, fully configurable from a web dashboard, in Fren
 > 💚 **1FA is 100% free.** The only official version is https://github.com/Cosatal/1FA.
 > If you paid for this bot, you were scammed: please report the seller.
 
+![The 1FA dashboard home page](docs/dashboard.png)
+
 ## Why this bot?
 
 I made this bot because I was tired of paying for premium bots that lock basic features behind a subscription.
