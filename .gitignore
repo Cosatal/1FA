@@ -1,0 +1,5 @@
+node_modules/
+.env
+.vscode/
+# Données des serveurs : clés d'API, clés IA des serveurs, conversations des tickets
+data/
