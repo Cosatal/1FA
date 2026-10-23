@@ -15,13 +15,13 @@ const { getTicketConfig, saveTicketConfig } = require('../features/tickets/ticke
 const welcomeStore = require('../features/welcome/welcome-store');
 const { isEmoji } = require('../features/tickets/tickets');
 const { renderForGuild, bannerFile, BANNERS_DIR } = require('../features/welcome/welcome-card');
-const { publishCaptcha } = require('../features/welcome/captcha');
+const { publishCaptcha, captchaConfig, CAPTCHA_LEVELS } = require('../features/welcome/captcha');
 const { publishTicketPanel } = require('../features/tickets/ticket-channels');
 const { FONTS_DIR, listFonts, addFont, removeFont } = require('../core/fonts');
 const { PROVIDERS, listProviders, listModels, testProvider, guildLocalCred, guildAi, setGuildAi } = require('../features/ai/ai-support');
 const { setGuildKey } = require('../core/settings');
 const { W, H, SYSTEM_FONTS } = require('./public/card-renderer');
-const { staffRoutes } = require('./staff');
+const { staffRoutes, forgetPanelAccess } = require('./staff');
 const { moduleRoutes, moduleStats, isBotOwner, parseModeration } = require('./modules');
 const transcripts = require('../features/tickets/transcripts');
 const { CREATOR, OFFICIAL_URL, inviteUrl } = require('../core/credits');
@@ -30,6 +30,8 @@ const { announceRoutes } = require('./announce');
 const { backupRoutes } = require('./backup');
 const { guildStats } = require('../features/stats');
 const { guildLang, setGuildLang } = require('../core/language');
+const { FEATURES } = require('../core/feature-config');
+const { logActivity, queryActivity, SOURCES } = require('../core/activity');
 const { HEX, str, isUrl, isText } = require('./util');
 
 const API = 'https://discord.com/api/v10';
@@ -190,6 +192,20 @@ function startDashboard(client) {
     next();
   };
 
+  // ---------- Activity log of the dashboard (Logs tab) ----------
+  // Every change made on a server (PUT, POST, DELETE) that succeeded is logged, with what was sent (secrets hidden)
+  app.use('/api/guilds/:id', (req, res, next) => {
+    const entry = req.method !== 'GET' && dashboardActivity(req);
+    if (entry) {
+      res.on('finish', () => {
+        if (res.statusCode >= 400 || !req.guild) return;
+        const { action, title, data = req.body } = entry;
+        logActivity(req.guild.id, { source: 'dashboard', action, title: `${req.session.user.username} ${title}`, author: req.session.user, data });
+      });
+    }
+    next();
+  });
+
   // ---------- API ----------
 
   app.get('/api/me', auth, async (req, res) => {
@@ -232,6 +248,7 @@ function startDashboard(client) {
       language: guildLang(g),
       tickets: getTicketConfig(g.id),
       welcome: welcomeStore.get(g.id),
+      captcha: captchaConfig(g.id),
       welcomeIntent: client.options.intents.has(GatewayIntentBits.GuildMembers),
       customBanner: fs.existsSync(bannerFile(g.id)),
       // AIs available for the ticket assistant (ready = server's or owner's key usable)
@@ -338,7 +355,38 @@ function startDashboard(client) {
       }
     }
     saveTicketConfig(req.guild.id, config);
+    forgetPanelAccess(req.guild.id); // removed people lose access to the staff panel right away
     res.json({ tickets: config });
+  });
+
+  // Activity log of the server (Logs tab): filters by source, author (name or id), action and dates, 50 per page
+  app.get('/api/guilds/:id/activity', auth, guildAccess, (req, res) => {
+    const q = req.query;
+    const date = (value) => (Number.isFinite(Number(value)) ? Number(value) : 0);
+    res.json(
+      queryActivity(req.guild.id, {
+        source: SOURCES.includes(q.source) ? q.source : '',
+        author: str(q.author).slice(0, 64),
+        action: str(q.action).slice(0, 64),
+        from: date(q.from),
+        to: date(q.to),
+        page: Math.max(1, parseInt(q.page, 10) || 1),
+      }),
+    );
+  });
+
+  // Members of the server, for the staff panel access list: search by name (?q=) or names of known ids (?ids=a,b)
+  app.get('/api/guilds/:id/members', auth, guildAccess, async (req, res) => {
+    const view = (m) => ({ id: m.id, name: m.displayName, tag: m.user.username, avatar: m.displayAvatarURL({ size: 64 }) });
+    const q = str(req.query.q).slice(0, 32);
+    if (q) {
+      const found = await req.guild.members.search({ query: q, limit: 10 }).catch(() => null);
+      return res.json({ members: found ? [...found.values()].map(view) : [] });
+    }
+    const wanted = str(req.query.ids).split(',').filter((id) => /^\d{17,20}$/.test(id)).slice(0, 50);
+    const members = await Promise.all(wanted.map((id) => req.guild.members.fetch(id).catch(() => null)));
+    // Members who left the server: shown with their id, so they can still be removed from the list
+    res.json({ members: wanted.map((id, i) => (members[i] ? view(members[i]) : { id, name: id, tag: 'a quitté le serveur', avatar: null })) });
   });
 
   // Announcements (sent right away or scheduled): dashboard/announce.js
@@ -347,19 +395,28 @@ function startDashboard(client) {
   app.put('/api/guilds/:id/welcome', auth, guildAccess, async (req, res) => {
     const parsed = parseWelcome(req.body ?? {}, req.guild);
     if (parsed.error) return res.status(400).json({ error: parsed.error });
-    const config = parsed.value;
-    // Captcha enabled: the verification message is posted (or updated). Same channel = same message
-    const old = welcomeStore.get(req.guild.id).captcha;
-    config.captcha.messageId = old.channelId === config.captcha.channelId ? old.messageId : '';
-    if (config.captcha.enabled) {
+    // The captcha has its own tab (PUT …/captcha): kept as it is
+    const config = { ...parsed.value, captcha: welcomeStore.get(req.guild.id).captcha };
+    welcomeStore.save(req.guild.id, config);
+    res.json({ welcome: config });
+  });
+
+  // Captcha (own tab): when enabled, the verification message is posted (or updated). Same channel = same message
+  app.put('/api/guilds/:id/captcha', auth, guildAccess, async (req, res) => {
+    const parsed = parseCaptcha(req.body ?? {}, req.guild);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    const welcome = welcomeStore.get(req.guild.id);
+    const captcha = parsed.value;
+    captcha.messageId = welcome.captcha.channelId === captcha.channelId ? welcome.captcha.messageId : '';
+    if (captcha.enabled) {
       try {
-        config.captcha.messageId = await publishCaptcha(req.guild, config.captcha);
+        captcha.messageId = await publishCaptcha(req.guild, captcha);
       } catch (error) {
         return res.status(400).json({ error: error.message });
       }
     }
-    welcomeStore.save(req.guild.id, config);
-    res.json({ welcome: config });
+    welcomeStore.save(req.guild.id, { ...welcome, captcha });
+    res.json({ captcha });
   });
 
   // Final render by the bot, with the settings being edited (not saved yet) and the logged-in person's avatar
@@ -450,7 +507,7 @@ function startDashboard(client) {
   moduleRoutes(app, client, auth, guildAccess);
   featureRoutes(app, client, auth, guildAccess);
   // Backup: the same validation as the dashboard forms
-  backupRoutes(app, auth, guildAccess, { parseTickets, parseWelcome, parseModeration, commandNames: new Set(client.commands.keys()) });
+  backupRoutes(app, auth, guildAccess, { parseTickets, parseWelcome, parseCaptcha, parseModeration, commandNames: new Set(client.commands.keys()) });
 
   // Statistics: joins, leaves, messages per day, peak hours, most active members (7, 30 or 90 days)
   app.get('/api/guilds/:id/stats', auth, guildAccess, async (req, res) => {
@@ -480,6 +537,81 @@ function startDashboard(client) {
   app.listen(port, () => console.log(`Dashboard online: ${baseUrl}`));
 }
 
+// Captcha settings sent by its tab (messageId is set by the route)
+function parseCaptcha(body, guild) {
+  const channelId = str(body.channelId);
+  const roleId = str(body.roleId);
+  const enabled = body.enabled === true;
+  if (enabled && !isText(guild, channelId)) return { error: 'Captcha : choisis le salon de vérification.' };
+  if (enabled && !guild.roles.cache.get(roleId)?.editable) return { error: 'Captcha : choisis un rôle d’accès placé sous celui du bot.' };
+  if (!CAPTCHA_LEVELS.includes(body.level)) return { error: 'Captcha : niveau de sécurité inconnu.' };
+  const int = (value, min, max, label) => {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < min || n > max) throw new Error(`Captcha : ${label} entre ${min} et ${max}.`);
+    return n;
+  };
+  try {
+    return {
+      value: {
+        enabled, channelId, roleId, messageId: '', level: body.level,
+        maxFails: int(body.maxFails, 1, 10, 'échecs avant sanction'),
+        kick: body.kick === true,
+        cooldown: int(body.cooldown, 1, 60, 'délai entre deux tentatives (secondes)'),
+        ttl: int(body.ttl, 60, 3600, 'durée de vie d’un code (secondes)'),
+      },
+    };
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
+// Buttons of the schema-based modules (features.js → actions)
+const ACTION_NAMES = { refresh: 'Vérifier maintenant', restart: 'Redémarrer', cancel: 'Annuler le redémarrage', remove: 'Supprimer' };
+
+// What a dashboard request changes: { action, title (after the person's name), data? }, or null if it's not logged
+// (previews, AI writing help…). path = the part after /api/guilds/<id>/
+const DASHBOARD_ACTIONS = [
+  ['PUT', /^tickets$/, () => ({ action: 'tickets.updated', title: 'a mis à jour les tickets' })],
+  ['POST', /^tickets\/panel$/, () => ({ action: 'tickets.panel_sent', title: 'a envoyé le panneau des tickets', data: null })],
+  ['PUT', /^welcome$/, () => ({ action: 'welcome.updated', title: 'a mis à jour la bienvenue' })],
+  ['PUT', /^captcha$/, () => ({ action: 'captcha.updated', title: 'a mis à jour le captcha' })],
+  ['POST', /^welcome\/banner$/, () => ({ action: 'welcome.banner_added', title: 'a importé une bannière de bienvenue', data: null })],
+  ['DELETE', /^welcome\/banner$/, () => ({ action: 'welcome.banner_removed', title: 'a supprimé la bannière de bienvenue', data: null })],
+  ['POST', /^fonts$/, () => ({ action: 'fonts.added', title: 'a importé une police', data: null })],
+  ['DELETE', /^fonts\/(.+)$/, (m) => ({ action: 'fonts.removed', title: `a supprimé la police ${decodeURIComponent(m[1])}`, data: null })],
+  ['PUT', /^language$/, (m, req) => ({ action: 'language.changed', title: `a mis le bot en ${req.body?.lang === 'fr' ? 'français' : 'anglais'}` })],
+  ['PUT', /^ai$/, () => ({ action: 'ai.updated', title: 'a changé l’IA du serveur' })],
+  ['PUT', /^ai-keys\/(\w+)$/, (m) => ({ action: 'ai.key_saved', title: `a enregistré une clé IA (${m[1]})` })],
+  ['DELETE', /^ai-keys\/(\w+)$/, (m) => ({ action: 'ai.key_removed', title: `a supprimé une clé IA (${m[1]})`, data: null })],
+  ['PUT', /^features\/(\w+)$/, (m) => ({ action: 'module.updated', title: `a mis à jour le module ${FEATURES[m[1]]?.title ?? m[1]}` })],
+  ['POST', /^features\/(\w+)\/actions\/(\w+)/, (m) => ({ action: 'module.action', title: `a utilisé « ${ACTION_NAMES[m[2]] ?? m[2]} » (${FEATURES[m[1]]?.title ?? m[1]})`, data: null })],
+  ['POST', /^backup$/, () => ({ action: 'backup.imported', title: 'a importé une sauvegarde des réglages', data: null })],
+  ['POST', /^announce$/, (m, req) => (req.body?.scheduleAt != null
+    ? { action: 'announce.scheduled', title: 'a programmé une annonce' }
+    : { action: 'announce.sent', title: 'a envoyé une annonce' })],
+  ['DELETE', /^announce\/scheduled\//, () => ({ action: 'announce.cancelled', title: 'a annulé une annonce programmée', data: null })],
+  ['PUT', /^moderation$/, () => ({ action: 'moderation.updated', title: 'a mis à jour la modération' })],
+  ['PUT', /^commands\/(.+)$/, (m) => ({ action: 'commands.updated', title: `a modifié la commande /${decodeURIComponent(m[1])}` })],
+  ['PUT', /^roles-panels\//, () => ({ action: 'reaction_roles.saved', title: 'a enregistré un panneau de rôles-réactions' })],
+  ['DELETE', /^roles-panels\//, () => ({ action: 'reaction_roles.deleted', title: 'a supprimé un panneau de rôles-réactions', data: null })],
+  ['POST', /^polls$/, () => ({ action: 'poll.created', title: 'a créé un sondage' })],
+  ['POST', /^giveaways$/, () => ({ action: 'giveaway.created', title: 'a lancé un giveaway' })],
+  ['POST', /^giveaways\/\w+\/end$/, () => ({ action: 'giveaway.ended', title: 'a terminé un giveaway', data: null })],
+  ['POST', /^giveaways\/\w+\/reroll$/, () => ({ action: 'giveaway.rerolled', title: 'a relancé le tirage d’un giveaway', data: null })],
+  ['DELETE', /^giveaways\//, () => ({ action: 'giveaway.deleted', title: 'a supprimé un giveaway', data: null })],
+  ['POST', /^alerts$/, () => ({ action: 'alert.added', title: 'a ajouté une alerte réseaux' })],
+  ['POST', /^alerts\/\w+\/test$/, () => ({ action: 'alert.tested', title: 'a testé une alerte réseaux', data: null })],
+  ['DELETE', /^alerts\//, () => ({ action: 'alert.removed', title: 'a supprimé une alerte réseaux', data: null })],
+];
+function dashboardActivity(req) {
+  const sub = req.path.replace(/^\/+|\/+$/g, '');
+  for (const [method, pattern, describe] of DASHBOARD_ACTIONS) {
+    const m = method === req.method && pattern.exec(sub);
+    if (m) return describe(m, req);
+  }
+  return null;
+}
+
 function parseTickets(body, guild) {
   const staffId = str(body.staffId);
   const received = str(body.received);
@@ -490,6 +622,17 @@ function parseTickets(body, guild) {
   if (panelChannelId && !isText(guild, panelChannelId)) return { error: 'Salon du bouton « Ouvrir un ticket » introuvable.' };
   if (body.enabled === true && !panelChannelId) return { error: 'Choisis le salon où poster le bouton « Ouvrir un ticket ».' };
   if (categoryId && guild.channels.cache.get(categoryId)?.type !== ChannelType.GuildCategory) return { error: 'Catégorie des tickets introuvable.' };
+  const notifyChannelId = str(body.notifyChannelId);
+  if (notifyChannelId && !isText(guild, notifyChannelId)) return { error: 'Salon des notifications du staff introuvable.' };
+
+  // Staff panel access: roles of the server (not @everyone) and member ids
+  const idList = (list) => [...new Set((Array.isArray(list) ? list : []).map(str))];
+  const accessRoles = idList(body.panelAccess?.roles);
+  const accessMembers = idList(body.panelAccess?.members);
+  if (accessRoles.some((id) => id === guild.id || !guild.roles.cache.has(id))) return { error: 'Accès au panel staff : rôle introuvable.' };
+  if (accessMembers.some((id) => !/^\d{17,20}$/.test(id))) return { error: 'Accès au panel staff : membre invalide.' };
+  if (accessRoles.length > 25 || accessMembers.length > 50) return { error: 'Accès au panel staff : 25 rôles et 50 membres maximum.' };
+  const panelAccess = { roles: accessRoles, members: accessMembers };
   if (received.length > 4000) return { error: 'Le message de confirmation fait 4000 caractères max.' };
   if (closed.length > 4000) return { error: 'Le message de fin fait 4000 caractères max.' };
 
@@ -527,7 +670,7 @@ function parseTickets(body, guild) {
   const model = str(body.ai?.model).slice(0, 150);
   const ai = { enabled: body.ai?.enabled === true, instructions, provider, model };
 
-  return { value: { enabled: body.enabled === true, staffId, panelChannelId, categoryId, received, closed, title, description, image, placeholder, options, ai } };
+  return { value: { enabled: body.enabled === true, staffId, panelChannelId, categoryId, notifyChannelId, received, closed, title, description, image, placeholder, options, ai, panelAccess } };
 }
 
 
@@ -547,8 +690,9 @@ function parseWelcome(body, guild) {
     if (channelId && !isText(guild, channelId)) fail('Salon de bienvenue introuvable.');
     const message = str(body.message);
     if (message.length > 2000) fail('Le texte du message fait 2000 caractères max.');
-    const format = pick(body.format, ['text', 'embed'], 'Format du message');
-    const card = body.card !== false;
+    // text: simple message (+ image) · embed: embed with the image inside · canvas: the welcome image alone
+    const format = pick(body.format, ['text', 'embed', 'canvas'], 'Format du message');
+    const card = format === 'canvas' || body.card !== false;
     const text = (value, max, label) => (str(value).length <= max ? str(value) : fail(`${label} : ${max} caractères max.`));
 
     const e = body.embed ?? {};
@@ -584,10 +728,6 @@ function parseWelcome(body, guild) {
     const goodbye = { enabled: body.goodbye?.enabled === true, channelId: str(body.goodbye?.channelId), message: text(body.goodbye?.message, 2000, 'Message d’au revoir') };
     if (goodbye.enabled && !isText(guild, goodbye.channelId)) fail('Choisis le salon du message d’au revoir.');
     if (goodbye.enabled && !goodbye.message) fail('Le message d’au revoir est vide.');
-
-    const captcha = { enabled: body.captcha?.enabled === true, channelId: str(body.captcha?.channelId), roleId: str(body.captcha?.roleId), messageId: '' };
-    if (captcha.enabled && !isText(guild, captcha.channelId)) fail('Captcha : choisis le salon de vérification.');
-    if (captcha.enabled && !editable(captcha.roleId)) fail('Captcha : choisis un rôle d’accès placé sous celui du bot.');
 
     // No default banner anymore: the old "default" becomes "none" (plain background)
     const banner = pick(body.banner === 'default' ? 'none' : body.banner, ['custom', 'none'], 'Bannière');
@@ -661,7 +801,6 @@ function parseWelcome(body, guild) {
         dm,
         autoroles,
         goodbye,
-        captcha,
         banner,
         background: color(body.background, 'Fond'),
         overlay,

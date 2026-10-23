@@ -3,8 +3,6 @@
 // One conversation per member, with all their tickets one after another.
 // URLs: #<server>  ·  #<server>/u/<member>  ·  #<server>/<ticket> (link to a specific ticket: opens the member's conversation on it)
 const state = { me: null, guildId: null, userId: null, tickets: null, focus: null, query: '', status: 'waiting', list: [] };
-const drafts = new Map(); // reply draft per member
-let attached = null; // { name, data }: file attached to the reply being written
 
 const dateFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
 const dayFmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'full' });
@@ -169,7 +167,6 @@ function renderList() {
 // ---------- A member's conversation ----------
 
 async function openConversation(userId) {
-  if (state.userId !== userId) saveDraft();
   state.userId = userId;
   $$('.ticket-item').forEach((el) => el.classList.toggle('active', el.dataset.id === userId));
   $('#view-panel').classList.toggle('reading', Boolean(userId));
@@ -191,11 +188,9 @@ async function openConversation(userId) {
   if (state.userId !== userId) return; // another member was opened in the meantime
   state.tickets = null; // new conversation: scroll to the bottom (or to the requested ticket)
   renderConversation(tickets);
-  $('#c-text').value = drafts.get(userId) ?? '';
-  setAttachment(null);
 }
 
-// The member's current ticket, if they have one: replies go to it
+// The member's current ticket, if they have one
 const openTicketOf = (tickets) => tickets.find((t) => !t.closedAt) ?? null;
 
 function renderConversation(tickets) {
@@ -214,8 +209,9 @@ function renderConversation(tickets) {
   $('#t-meta .id').addEventListener('click', () => copy(user.id, 'ID copié'));
   $('#t-copy').onclick = () => copy(location.href, 'Lien copié');
   $('#t-close').classList.toggle('hidden', !open);
-  $('#composer').classList.toggle('hidden', !open);
-  $('#c-text').placeholder = `Répondre à ${user.tag}… (Ctrl + Entrée pour envoyer)`;
+  // Open ticket: shortcut to its channel on Discord, where the staff reply
+  $('#reply-hint').classList.toggle('hidden', !open?.channelId);
+  if (open?.channelId) $('#t-goto').href = `https://discord.com/channels/${state.guildId}/${open.channelId}`;
 
   const html = [];
   tickets.forEach((t, i) => {
@@ -288,8 +284,6 @@ $('#t-close').addEventListener('click', async () => {
   if (!open || !confirm(`Fermer le ticket de ${open.user.tag} ? Son salon sera supprimé et il recevra le message de fin en MP.`)) return;
   try {
     await api('POST', `/api/staff/${state.guildId}/tickets/${open.id}/close`);
-    drafts.delete(state.userId);
-    $('#c-text').value = '';
     await reloadConversation();
     loadList();
     toast('Ticket fermé ✅');
@@ -306,58 +300,5 @@ async function copy(text, message) {
     toast('Copie impossible.', 'error');
   }
 }
-
-// ---------- Reply ----------
-
-function saveDraft() {
-  if (state.userId) drafts.set(state.userId, $('#c-text').value);
-}
-
-function setAttachment(file) {
-  attached = file;
-  $('#c-file').classList.toggle('hidden', !file);
-  $('#c-file span').textContent = file ? `📎 ${file.name}` : '';
-}
-
-$('#c-file-input').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (!file) return;
-  if (file.size > 8 * 1024 * 1024) return toast('Fichier trop lourd (8 Mo max).', 'error');
-  const reader = new FileReader();
-  reader.onload = () => setAttachment({ name: file.name, data: reader.result });
-  reader.readAsDataURL(file);
-});
-$('#c-file-clear').addEventListener('click', () => setAttachment(null));
-
-$('#c-text').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    e.preventDefault();
-    $('#composer').requestSubmit();
-  }
-});
-
-$('#composer').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const open = state.tickets && openTicketOf(state.tickets);
-  const content = $('#c-text').value.trim();
-  if (!open || (!content && !attached)) return;
-
-  const button = $('#c-send');
-  button.disabled = true;
-  try {
-    await api('POST', `/api/staff/${state.guildId}/tickets/${open.id}/reply`, { content, file: attached });
-    $('#c-text').value = '';
-    drafts.delete(state.userId);
-    setAttachment(null);
-    await reloadConversation();
-    $('.ticket-col').scrollTop = $('.ticket-col').scrollHeight;
-    loadList(true);
-  } catch (error) {
-    toast(error.message, 'error');
-  } finally {
-    button.disabled = false;
-  }
-});
 
 init();

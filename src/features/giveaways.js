@@ -1,5 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, SnowflakeUtil } = require('discord.js');
 const { createStore } = require('../core/store');
+const { logActivity } = require('../core/activity');
 
 // Giveaways: a message with a "Participer" button, automatic draw at the end. Created in the dashboard.
 // data/giveaways.json = { <guildId>: { list: [{ id, channelId, messageId, prize, description, winners, endsAt, host,
@@ -173,7 +174,10 @@ function startGiveawayTimer(client) {
   setInterval(async () => {
     for (const guild of client.guilds.cache.values()) {
       const due = peekGiveaways(guild.id).filter((gw) => !gw.ended && gw.endsAt <= Date.now());
-      for (const gw of due) await endGiveaway(guild, gw.id).catch((error) => console.error('Giveaway end:', error.message));
+      for (const gw of due) {
+        await endGiveaway(guild, gw.id).catch((error) => console.error('Giveaway end:', error.message));
+        logActivity(guild.id, { source: 'bot', action: 'giveaway.auto_ended', title: `Giveaway « ${gw.prize} » terminé automatiquement` });
+      }
     }
   }, 15000);
 }

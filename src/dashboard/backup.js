@@ -1,6 +1,7 @@
 const { FEATURES, getFeature, saveFeature, parseFeature, publicConfig } = require('../core/feature-config');
 const { getTicketConfig, saveTicketConfig } = require('../features/tickets/ticket-store');
 const welcomeStore = require('../features/welcome/welcome-store');
+const { captchaConfig, CAPTCHA_DEFAULTS } = require('../features/welcome/captcha');
 const moderation = require('../features/moderation/moderation');
 const { guildLang, setGuildLang } = require('../core/language');
 const { PROVIDERS, guildAi, setGuildAi } = require('../features/ai/ai-support');
@@ -20,7 +21,7 @@ function exportBackup(guild) {
     language: guildLang(guild),
     ai: guildAi(guild.id), // the chosen AI and model (never the keys)
     tickets: getTicketConfig(guild.id),
-    welcome: welcomeStore.get(guild.id),
+    welcome: { ...welcomeStore.get(guild.id), captcha: captchaConfig(guild.id) },
     moderation: { ...moderation.getModeration(guild.id), rules: {} },
     commandRules: moderation.getCommandRules(guild.id),
     features: Object.fromEntries(Object.keys(FEATURES).map((name) => [name, publicConfig(name, getFeature(guild.id, name))])),
@@ -28,7 +29,7 @@ function exportBackup(guild) {
 }
 
 // parsers: the dashboard's validators (server.js and modules.js), to accept exactly what the dashboard accepts
-async function importBackup(guild, data, { parseTickets, parseWelcome, parseModeration, commandNames }) {
+async function importBackup(guild, data, { parseTickets, parseWelcome, parseCaptcha, parseModeration, commandNames }) {
   if (data?.format !== '1fa-backup') throw new Error('Ce fichier n’est pas une sauvegarde du bot.');
   const results = [];
   const step = async (label, run) => {
@@ -60,9 +61,16 @@ async function importBackup(guild, data, { parseTickets, parseWelcome, parseMode
   if (data.welcome) await step('Bienvenue', () => {
     const parsed = parseWelcome(data.welcome, guild);
     if (parsed.error) throw new Error(parsed.error);
-    const { captcha } = welcomeStore.get(guild.id);
-    const messageId = captcha.channelId === parsed.value.captcha.channelId ? captcha.messageId : '';
-    welcomeStore.save(guild.id, { ...parsed.value, captcha: { ...parsed.value.captcha, messageId } });
+    welcomeStore.save(guild.id, { ...parsed.value, captcha: welcomeStore.get(guild.id).captcha });
+  });
+  // The captcha is saved inside the welcome settings; older backups don't have the new settings (defaults used)
+  if (data.welcome?.captcha) await step('Captcha', () => {
+    const parsed = parseCaptcha({ ...CAPTCHA_DEFAULTS, ...data.welcome.captcha }, guild);
+    if (parsed.error) throw new Error(parsed.error);
+    const welcome = welcomeStore.get(guild.id);
+    // Same channel: the message already posted will be updated on the next save
+    const messageId = welcome.captcha.channelId === parsed.value.channelId ? welcome.captcha.messageId : '';
+    welcomeStore.save(guild.id, { ...welcome, captcha: { ...parsed.value, messageId } });
   });
   if (data.moderation) await step('Modération', async () => {
     const config = { ...parseModeration(data.moderation, guild), rules: moderation.getModeration(guild.id).rules };

@@ -1,6 +1,7 @@
 const path = require('node:path');
 const { EmbedBuilder } = require('discord.js');
 const { createStore, readJson, writeJson, DATA_DIR } = require('../../core/store');
+const { logActivity } = require('../../core/activity');
 const { getFeature, saveFeature } = require('../../core/feature-config');
 const { queryServer, resolveHost } = require('./game-query');
 const { rconCommand } = require('./rcon');
@@ -142,6 +143,7 @@ async function updateStatusMessage(guild, server, state) {
 }
 
 async function alert(guild, server, text, ping = false) {
+  logActivity(guild.id, { source: 'bot', action: 'game_server.alert', title: text.replaceAll('**', '').replace(/<t:(\d+):R>/, (_, s) => `à ${new Date(s * 1000).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}`) });
   const channel = server.alertChannel ? guild.channels.cache.get(server.alertChannel) : null;
   if (!channel?.isTextBased()) return;
   const role = ping && server.alertRole ? `<@&${server.alertRole}> ` : '';

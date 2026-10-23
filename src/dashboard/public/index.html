@@ -85,12 +85,14 @@
           <a class="tab" data-tab="roles"><span class="dot"></span><span class="ico">🎭</span>Rôles-réactions</a>
           <a class="tab" data-tab="moderation"><span class="dot"></span><span class="ico">🛡️</span>Modération</a>
           <div class="nav-label">Sécurité</div>
+          <a class="tab" data-tab="captcha"><span class="dot"></span><span class="ico">🔐</span>Captcha</a>
           <a class="tab" data-tab="antiRaid"><span class="dot"></span><span class="ico">🚨</span>Anti-raid</a>
           <a class="tab" data-tab="invites"><span class="dot"></span><span class="ico">📨</span>Invitations</a>
           <div class="nav-label">Gestion du serveur</div>
           <a class="tab" data-tab="tickets"><span class="dot"></span><span class="ico">🎫</span>Tickets</a>
           <a class="tab" data-tab="botCommands"><span class="dot on"></span><span class="ico">🤖</span>Commandes du bot</a>
           <a class="tab" data-tab="backup"><span class="ico">💾</span>Sauvegarde</a>
+          <a class="tab" data-tab="logs"><span class="ico">📜</span>Logs</a>
           <a class="tab" data-tab="commands"><span class="dot"></span><span class="ico">⌨️</span>Commandes perso</a>
           <a class="tab" data-tab="autoMessages"><span class="dot"></span><span class="ico">⏰</span>Messages auto</a>
           <a class="tab" data-tab="announce"><span class="dot on"></span><span class="ico">📢</span>Annonces</a>
@@ -150,12 +152,26 @@
                 </div>
                 <label>Catégorie des salons de tickets<select id="t-category"></select>
                   <small>Vide = la catégorie du salon du bouton.</small></label>
+                <label>Salon des notifications du staff<select id="t-notify"></select>
+                  <small>Le bot y annonce chaque nouveau ticket en mentionnant le rôle staff, puis met le message à jour à la fermeture. Vide = pas de notification.</small></label>
                 <small>Chaque ticket crée un salon visible seulement par le membre, le rôle staff et le bot, fermé avec le bouton 🔒. Le bot a besoin de « Gérer les salons » et « Gérer les rôles ».</small>
                 <div class="actions mt">
                   <button id="t-send-panel" class="btn primary">📤 Envoyer le panneau</button>
                   <span id="t-panel-link" class="muted small"></span>
                 </div>
                 <small>Poste le message avec le bouton « Ouvrir un ticket » (ou le menu des types) dans le salon choisi. Déjà posté : il est mis à jour ; supprimé : il est reposté.</small>
+              </div>
+
+              <div class="card">
+                <h2>🔒 Accès au panel staff</h2>
+                <p class="muted small">Qui peut ouvrir le <a href="/staff" target="_blank">📂 panel des tickets</a>. Liste vide : le rôle staff et les membres qui peuvent « Gérer le serveur ».
+                  Dès qu’un rôle ou un membre est ajouté, seuls eux y ont accès (et le propriétaire du serveur).</p>
+                <label>Rôles autorisés</label><div id="t-access-roles" class="chips"></div>
+                <label>Membres autorisés</label><div id="t-access-members" class="chips"></div>
+                <div class="member-search">
+                  <input id="t-access-search" placeholder="Ajouter un membre : tape son pseudo…" autocomplete="off" spellcheck="false">
+                  <div id="t-access-results" class="member-results hidden"></div>
+                </div>
               </div>
 
               <div class="card">
@@ -226,28 +242,6 @@
             L’aperçu fonctionne quand même.
           </div>
 
-          <!-- Captcha -->
-          <div class="card">
-            <div class="card-head">
-              <h2>🛡️ Utiliser un captcha pour vérifier que les nouveaux membres sont humains</h2>
-              <label class="switch" title="Activer / désactiver"><input type="checkbox" id="w-captcha-on"><span></span></label>
-            </div>
-            <div class="w-section" data-for="w-captcha-on">
-              <div class="grid2">
-                <label>Salon de vérification<select id="w-captcha-channel"></select></label>
-                <label>Rôle donné après la vérification<select id="w-captcha-role"></select></label>
-              </div>
-              <details class="howto">
-                <summary>Comment régler le serveur pour le captcha</summary>
-                <ol>
-                  <li>Crée un rôle <b>Vérifié</b> (sous le rôle du bot) et choisis-le ci-dessus.</li>
-                  <li>Retire à <b>@everyone</b> la permission « Voir les salons » partout, sauf dans le salon de vérification.</li>
-                  <li>Donne « Voir les salons » au rôle <b>Vérifié</b>. Le bot poste le bouton de vérification à l’enregistrement.</li>
-                </ol>
-              </details>
-            </div>
-          </div>
-
           <!-- Welcome message -->
           <div class="split">
             <div class="col">
@@ -258,10 +252,13 @@
                 </div>
                 <div class="w-section" data-for="w-enabled">
                   <label>Salon des messages de bienvenue<select id="w-channel"></select></label>
-                  <div id="w-format" class="segmented">
-                    <button type="button" data-format="text">Message texte</button>
-                    <button type="button" data-format="embed">Message embed</button>
+                  <label>Format du message</label>
+                  <div id="w-format" class="segmented w-format">
+                    <button type="button" data-format="embed">Embed</button>
+                    <button type="button" data-format="text">Message simple</button>
+                    <button type="button" data-format="canvas">Canvas</button>
                   </div>
+                  <small id="w-format-help"></small>
                   <label class="mt"><span id="w-message-label">Texte du message</span><textarea id="w-message" data-ai="welcome" rows="3" maxlength="2000" placeholder="Bienvenue {user} !"></textarea></label>
 
                   <div id="w-embed" class="embed-editor">
@@ -277,7 +274,7 @@
                     <label class="mt">Bas de page<input id="w-embed-footer" maxlength="2048" placeholder="Texte de bas de page"></label>
                     <label class="check"><input type="checkbox" id="w-embed-thumbnail"> Avatar du membre en miniature</label>
                   </div>
-                  <label class="check"><input type="checkbox" id="w-card"> Joindre l’image de bienvenue (à personnaliser ci-dessous)</label>
+                  <label class="check" id="w-card-row"><input type="checkbox" id="w-card"> Joindre l’image de bienvenue (à personnaliser ci-dessous)</label>
                 </div>
               </div>
             </div>
@@ -732,6 +729,8 @@
   <script src="/features.js"></script>
   <script src="/chart.js"></script>
   <script src="/insights.js"></script>
+  <script src="/activity.js"></script>
+  <script src="/captcha.js"></script>
   <script src="/emoji-picker.js"></script>
   <script src="/ai-write.js"></script>
   <script src="/colors.js"></script>

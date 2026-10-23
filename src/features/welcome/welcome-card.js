@@ -55,14 +55,15 @@ async function renderForGuild(guild, config, { avatarUrl, name }) {
 
 const varsOf = (member) => ({ user: `${member}`, name: member.displayName, server: member.guild.name, count: member.guild.memberCount });
 
-// The welcome message: text and/or embed, with the welcome image if enabled
+// The welcome message, by format: simple message (text + image if enabled), embed (image inside) or canvas (the image alone,
+// with an optional text above)
 async function buildWelcomeMessage(member) {
   const { guild } = member;
   const config = welcomeStore.get(guild.id);
   // Texts written in the dashboard: sent as is, never translated (keep). max = Discord's limit for the field
   const fill = (text, max) => keep(fillVars(text, varsOf(member)), max);
   const files = [];
-  if (config.card) {
+  if (config.card || config.format === 'canvas') {
     const card = await renderForGuild(guild, config, { avatarUrl: member.displayAvatarURL({ extension: 'png', size: 256, forceStatic: true }), name: member.displayName });
     files.push(new AttachmentBuilder(card, { name: 'bienvenue.jpg' }));
   }

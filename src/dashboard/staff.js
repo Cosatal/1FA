@@ -1,26 +1,31 @@
 const path = require('node:path');
 const transcripts = require('../features/tickets/transcripts');
-const { isStaff, replyFromPanel, closeFromPanel } = require('../features/tickets/tickets');
-const { peekTicketConfig } = require('../features/tickets/ticket-store');
+const { closeFromPanel } = require('../features/tickets/tickets');
+const { peekTicketConfig, panelRestricted, canUsePanel } = require('../features/tickets/ticket-store');
 
 // Staff panel (/staff): this is where staff read tickets, reply to members and close tickets.
 // Tickets are shown per member: one conversation per person, with all their tickets one after another.
-// Access: Discord login + the server's staff role (or the "Manage Server" permission).
+// Access: Discord login + the roles and members chosen in the dashboard (Tickets → Staff panel access),
+// or by default the server's staff role and the "Manage Server" permission.
 
 const { str } = require('./util');
 
 const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
-const MAX_FILE = 8 * 1024 * 1024; // DM send limit for a bot
+
+// Checking roles requires a call to Discord: the member is cached for 1 minute
+const checked = new Map(); // <guildId>:<userId> → { member (null if no access), at }
+// The access list of a server changed (dashboard): its members are checked again right away
+function forgetPanelAccess(guildId) {
+  for (const key of checked.keys()) if (key.startsWith(`${guildId}:`)) checked.delete(key);
+}
 
 function staffRoutes(app, client, auth) {
-  // Checking roles requires a call to Discord: the member is cached for 1 minute
-  const checked = new Map(); // <guildId>:<userId> → { member (null if not staff), at }
   async function staffMember(guild, userId) {
     const key = `${guild.id}:${userId}`;
     const hit = checked.get(key);
     if (hit && Date.now() - hit.at < 60_000) return hit.member;
     const member = await guild.members.fetch({ user: userId, force: true }).catch(() => null);
-    const result = isStaff(member) ? member : null;
+    const result = canUsePanel(member) ? member : null;
     if (checked.size > 10_000) checked.clear();
     checked.set(key, { member: result, at: Date.now() });
     return result;
@@ -38,9 +43,9 @@ function staffRoutes(app, client, auth) {
   app.get('/staff', (req, res) => res.sendFile(path.join(__dirname, 'public', 'staff.html')));
 
   app.get('/api/staff/guilds', auth, async (req, res) => {
-    // Staff = "Manage Server" (these servers are known from the login) or the configured staff role:
+    // Possible access: "Manage Server" (these servers are known from the login), a staff role or a restricted access list.
     // Discord is only asked for those servers, not for every server of the bot
-    const all = [...client.guilds.cache.values()].filter((g) => req.session.guildIds?.includes(g.id) || peekTicketConfig(g.id).staffId);
+    const all = [...client.guilds.cache.values()].filter((g) => req.session.guildIds?.includes(g.id) || peekTicketConfig(g.id).staffId || panelRestricted(g.id));
     const members = await Promise.all(all.map((g) => staffMember(g, req.session.user.id)));
     res.json({
       user: req.session.user,
@@ -75,28 +80,7 @@ function staffRoutes(app, client, auth) {
     res.json({ userId: ticket.user.id });
   });
 
-  app.post('/api/staff/:guildId/tickets/:ticketId/reply', auth, staffAccess, async (req, res) => {
-    const content = str(req.body?.content);
-    if (content.length > 1800) return res.status(400).json({ error: 'Le message fait 1800 caractères max.' });
-
-    let file = null;
-    if (req.body?.file) {
-      const match = /^data:([^;]*);base64,(.+)$/.exec(req.body.file.data ?? '');
-      const name = str(req.body.file.name).replace(/[\\/]/g, '_').slice(-100) || 'fichier';
-      if (!match) return res.status(400).json({ error: 'Fichier illisible.' });
-      file = { name, buffer: Buffer.from(match[2], 'base64'), contentType: match[1] };
-      if (file.buffer.length > MAX_FILE) return res.status(400).json({ error: 'Fichier trop lourd (8 Mo max).' });
-    }
-    if (!content && !file) return res.status(400).json({ error: 'Le message est vide.' });
-
-    try {
-      await replyFromPanel(req.guild, req.params.ticketId, req.member, { content, file });
-      res.json({ ok: true });
-    } catch (error) {
-      res.status(400).json({ error: error.message });
-    }
-  });
-
+  // The staff reply directly in the ticket channel on Discord: the panel is for reading and closing
   app.post('/api/staff/:guildId/tickets/:ticketId/close', auth, staffAccess, async (req, res) => {
     try {
       await closeFromPanel(req.guild, req.params.ticketId, req.member);
@@ -116,4 +100,4 @@ function staffRoutes(app, client, auth) {
   });
 }
 
-module.exports = { staffRoutes };
+module.exports = { staffRoutes, forgetPanelAccess };

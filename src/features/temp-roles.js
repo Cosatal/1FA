@@ -1,4 +1,5 @@
 const { createStore } = require('../core/store');
+const { logActivity } = require('../core/activity');
 
 // Temporary roles: given for a duration (/role-temporaire), removed automatically at the end, even after a restart.
 // data/temp-roles.json = { <guildId>: { list: [{ userId, roleId, until, by }] } }
@@ -28,6 +29,9 @@ function startTempRoles(client) {
       for (const t of due) {
         removeTempRole(guild.id, t.userId, t.roleId);
         await guild.members.removeRole({ user: t.userId, role: t.roleId, reason: 'Fin du rôle temporaire' }).catch(() => {});
+        const name = guild.members.cache.get(t.userId)?.displayName ?? t.userId;
+        const role = guild.roles.cache.get(t.roleId)?.name ?? t.roleId;
+        logActivity(guild.id, { source: 'bot', action: 'temp_role.ended', title: `Rôle temporaire @${role} retiré à ${name} (durée terminée)`, data: { membre: t.userId, rôle: t.roleId } });
       }
     }
   }, 60000).unref();

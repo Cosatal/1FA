@@ -1,5 +1,6 @@
 const { ButtonStyle, ComponentType, EmbedBuilder, MessageFlags, SeparatorSpacingSize, SnowflakeUtil } = require('discord.js');
 const { createStore } = require('../core/store');
+const { logActivity } = require('../core/activity');
 const { HEX, str, isUrl, isText } = require('./util');
 const { keep } = require('./public/i18n');
 
@@ -221,7 +222,15 @@ function startScheduledAnnouncements(client) {
       // Removed before sending (an announcement is never sent twice): exactly the ones about to be sent
       const sending = new Set(due.map((item) => item.id));
       scheduled.save(guild.id, { list: scheduled.peek(guild.id).list.filter((item) => !sending.has(item.id)) });
-      for (const item of due) await sendAnnounce(guild, item.value).catch((e) => console.error(`Scheduled announcement (${guild.name}):`, e.message));
+      for (const item of due) {
+        const sent = await sendAnnounce(guild, item.value).catch((e) => console.error(`Scheduled announcement (${guild.name}):`, e.message));
+        const channel = guild.channels.cache.get(item.value.channelId)?.name ?? '?';
+        logActivity(guild.id, {
+          source: 'bot',
+          action: sent ? 'announce.scheduled_sent' : 'announce.scheduled_failed',
+          title: sent ? `Annonce programmée par ${item.by} envoyée dans #${channel}` : `Annonce programmée par ${item.by} impossible à envoyer dans #${channel}`,
+        });
+      }
     }
   }, 30000).unref();
 }

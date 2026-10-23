@@ -1,5 +1,6 @@
 const { GuildVerificationLevel, PermissionFlagsBits } = require('discord.js');
 const { createStore } = require('../../core/store');
+const { logActivity } = require('../../core/activity');
 const { getFeature, fillVars } = require('../../core/feature-config');
 const { keep } = require('../../dashboard/public/i18n');
 const { translatorFor } = require('../../core/language');
@@ -15,6 +16,9 @@ const raids = createStore('anti-raid', { until: 0, previousLevel: null });
 const recentJoins = new Map(); // guildId → [{ member, at }]
 
 async function raidAlert(guild, config, text) {
+  // Logs tab: the first line as title, the whole alert in the details
+  const [first, ...rest] = text.replaceAll('**', '').split('\n');
+  logActivity(guild.id, { source: 'bot', action: 'antiraid.alert', title: first, data: rest.length ? { détails: rest.join(' ') } : null });
   const channel = guild.channels.cache.get(config.alertChannel);
   const ping = config.alertRole ? `<@&${config.alertRole}> ` : '';
   await channel?.send({ content: `${ping}${text}`, allowedMentions: { roles: config.alertRole ? [config.alertRole] : [] } }).catch(() => {});

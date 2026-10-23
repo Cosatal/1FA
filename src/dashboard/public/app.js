@@ -65,7 +65,7 @@ async function route() {
 }
 
 const TABS = [
-  'tickets', 'welcome', 'announce', 'roles', 'moderation', 'botCommands', 'polls', 'giveaways', 'alerts', 'stats', 'backup', 'ai',
+  'tickets', 'welcome', 'announce', 'roles', 'moderation', 'botCommands', 'polls', 'giveaways', 'alerts', 'stats', 'backup', 'logs', 'captcha', 'ai',
   // Schema-based modules (features.js)
   'levels', 'commands', 'autoMessages', 'tempVoice', 'counters', 'suggestions', 'starboard', 'birthdays', 'antiRaid', 'invites', 'aiTools', 'gameServers',
 ];
@@ -178,6 +178,10 @@ const MODULES = [
   {
     group: 'Essentiels', tab: 'moderation', icon: '🛡️', title: 'Modération', text: 'Filtres automatiques (mots, liens, spam…), avertissements et logs des sanctions.',
     badge: (s) => s.moderationFilters && `${plural(s.moderationFilters, 'filtre')} actif${s.moderationFilters > 1 ? 's' : ''}`, on: (s) => s.moderationFilters > 0,
+  },
+  {
+    group: 'Sécurité', tab: 'captcha', icon: '🔐', title: 'Captcha', text: 'Vérifie que chaque nouveau membre est humain avant de lui ouvrir le serveur : 4 niveaux de sécurité.',
+    badge: () => state.data.captcha.enabled && 'Actif', on: () => state.data.captcha.enabled,
   },
   { group: 'Sécurité', tab: 'antiRaid', icon: '🚨', title: 'Anti-raid', text: 'Verrouille le serveur si trop de comptes arrivent d’un coup, et bloque les comptes trop récents.', ...feature('antiRaid') },
   { group: 'Sécurité', tab: 'invites', icon: '📨', title: 'Invitations', text: 'Découvre qui a invité chaque nouveau membre et affiche le classement des inviteurs.', ...feature('invites') },
@@ -374,9 +378,8 @@ function fillSelects() {
   $('#t-staff').innerHTML = options(roles, 'Aucun', '@');
   $('#t-panel-channel').innerHTML = options(channels, 'Choisis un salon…', '# ');
   $('#t-category').innerHTML = options(state.data.categories, 'Celle du salon du bouton', '📁 ');
+  $('#t-notify').innerHTML = options(channels, 'Aucun (pas de notification)', '# ');
   $('#w-channel').innerHTML = options(channels, 'Salon système du serveur', '# ');
-  $('#w-captcha-channel').innerHTML = options(channels, 'Choisis un salon…', '# ');
-  $('#w-captcha-role').innerHTML = options(roles.filter((r) => r.editable), 'Choisis un rôle…', '@');
   $('#w-bye-channel').innerHTML = options(channels, 'Choisis un salon…', '# ');
   $('#a-channel').innerHTML = options(channels, 'Choisis un salon…', '# ');
   $('#a-mention').innerHTML =
@@ -399,7 +402,7 @@ $('#t-enabled').addEventListener('change', (e) => {
   state.edit.tickets.enabled = e.target.checked;
   changed('tickets');
 });
-for (const [id, key] of [['t-staff', 'staffId'], ['t-panel-channel', 'panelChannelId'], ['t-category', 'categoryId']]) {
+for (const [id, key] of [['t-staff', 'staffId'], ['t-panel-channel', 'panelChannelId'], ['t-category', 'categoryId'], ['t-notify', 'notifyChannelId']]) {
   $(`#${id}`).addEventListener('change', (e) => {
     state.edit.tickets[key] = e.target.value;
     changed('tickets');
@@ -576,11 +579,84 @@ function renderTicketsForm() {
   $('#t-staff').value = t.staffId;
   $('#t-panel-channel').value = t.panelChannelId ?? '';
   $('#t-category').value = t.categoryId ?? '';
+  $('#t-notify').value = t.notifyChannelId ?? '';
   $('#t-ai-enabled').checked = t.ai.enabled;
   $('#t-ai-instructions').value = t.ai.instructions;
   renderOptions();
   renderTicketAiUsed();
+  renderPanelAccess();
 }
+
+// ---------- Staff panel access: allowed roles and members ----------
+
+const memberNames = new Map(); // id → { name, tag, avatar }, filled by the searches
+
+function renderPanelAccess() {
+  const access = (state.edit.tickets.panelAccess ??= { roles: [], members: [] });
+  chips($('#t-access-roles'), state.data.roles, access.roles, '@', () => changed('tickets'));
+  renderAccessMembers();
+  // Names of members already in the list (only their id is saved)
+  const unknown = access.members.filter((id) => !memberNames.has(id));
+  if (unknown.length) {
+    api('GET', `/api/guilds/${state.guildId}/members?ids=${unknown.join(',')}`)
+      .then(({ members }) => {
+        for (const m of members) memberNames.set(m.id, m);
+        renderAccessMembers();
+      })
+      .catch(() => {});
+  }
+}
+
+function renderAccessMembers() {
+  const { members } = state.edit.tickets.panelAccess;
+  $('#t-access-members').innerHTML =
+    members
+      .map((id) => {
+        const m = memberNames.get(id);
+        return `<span class="chip"><span translate="no">${esc(m?.name ?? id)}</span>${m?.tag ? ` <small${m.avatar ? ' translate="no"' : ''}>${esc(m.tag)}</small>` : ''}<button type="button" data-id="${id}">✕</button></span>`;
+      })
+      .join('') || '<span class="muted small">Aucun membre</span>';
+}
+
+$('#t-access-members').addEventListener('click', (e) => {
+  const id = e.target.dataset?.id;
+  if (!id) return;
+  const list = state.edit.tickets.panelAccess.members;
+  list.splice(list.indexOf(id), 1);
+  renderAccessMembers();
+  changed('tickets');
+});
+
+// Search by name, a little after the last key typed
+let accessSearch = 0;
+$('#t-access-search').addEventListener('input', (e) => {
+  clearTimeout(accessSearch);
+  const q = e.target.value.trim();
+  const results = $('#t-access-results');
+  if (q.length < 2) return results.classList.add('hidden');
+  accessSearch = setTimeout(async () => {
+    const { members } = await api('GET', `/api/guilds/${state.guildId}/members?q=${encodeURIComponent(q)}`).catch(() => ({ members: [] }));
+    const already = state.edit.tickets.panelAccess.members;
+    const list = members.filter((m) => !already.includes(m.id));
+    results.innerHTML = list.length
+      ? list
+          .map((m) => `<button type="button" data-id="${m.id}" translate="no">${m.avatar ? `<img src="${esc(m.avatar)}" alt="">` : ''}<span>${esc(m.name)}</span><small>${esc(m.tag)}</small></button>`)
+          .join('')
+      : '<span class="muted small">Aucun membre trouvé</span>';
+    for (const m of list) memberNames.set(m.id, m);
+    results.classList.remove('hidden');
+  }, 300);
+});
+
+$('#t-access-results').addEventListener('click', (e) => {
+  const id = e.target.closest('[data-id]')?.dataset.id;
+  if (!id) return;
+  state.edit.tickets.panelAccess.members.push(id);
+  $('#t-access-search').value = '';
+  $('#t-access-results').classList.add('hidden');
+  renderAccessMembers();
+  changed('tickets');
+});
 
 function renderOptions() {
   const opts = state.edit.tickets.options;
@@ -1107,9 +1183,12 @@ const welcome = () => state.edit.welcome;
 const findEl = (id) => welcome().elements.find((e) => e.id === id);
 const newId = () => `t${Date.now().toString(36)}`;
 
+// Images from another site (the Discord avatar) are asked with CORS: otherwise the browser "taints" the canvas they are
+// drawn on, and the preview can no longer be exported from it
 function loadImg(src) {
   return new Promise((resolve) => {
     const img = new Image();
+    if (/^https?:/.test(src) && new URL(src).origin !== location.origin) img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = src;
@@ -1679,7 +1758,7 @@ async function deleteFont(family) {
   }
 }
 
-// ---------- Message settings (welcome, DM, roles, goodbye, captcha) ----------
+// ---------- Message settings (welcome, DM, roles, goodbye) ----------
 
 // Form field ↔ config setting ("object.key" path)
 const W_FIELDS = [
@@ -1698,9 +1777,6 @@ const W_FIELDS = [
   ['w-bye-on', 'goodbye.enabled', 'checked'],
   ['w-bye-channel', 'goodbye.channelId'],
   ['w-bye', 'goodbye.message'],
-  ['w-captcha-on', 'captcha.enabled', 'checked'],
-  ['w-captcha-channel', 'captcha.channelId'],
-  ['w-captcha-role', 'captcha.roleId'],
 ];
 const wPath = (path) => {
   const keys = path.split('.');
@@ -1734,8 +1810,17 @@ function renderWelcomeSections() {
   $$('#tab-welcome .w-section').forEach((s) => s.classList.toggle('hidden', !$(`#${s.dataset.for}`).checked));
   $$('#w-format button').forEach((b) => b.classList.toggle('on', b.dataset.format === w.format));
   $('#w-embed').classList.toggle('hidden', w.format !== 'embed');
-  $('#w-message-label').textContent = w.format === 'embed' ? 'Texte au-dessus de l’embed (optionnel)' : 'Texte du message';
-  $('#w-image-card').classList.toggle('hidden', !w.card);
+  $('#w-message-label').textContent = {
+    embed: 'Texte au-dessus de l’embed (optionnel)',
+    canvas: 'Texte au-dessus de l’image (optionnel)',
+  }[w.format] ?? 'Texte du message';
+  $('#w-format-help').textContent = {
+    embed: 'Un cadre avec titre, description et champs, l’image de bienvenue à l’intérieur.',
+    canvas: 'Seulement l’image de bienvenue, dessinée au nom du membre (éditeur ci-dessous).',
+  }[w.format] ?? 'Un message texte, avec l’image de bienvenue en dessous si elle est cochée.';
+  // Canvas = the image itself: always attached
+  $('#w-card-row').classList.toggle('hidden', w.format === 'canvas');
+  $('#w-image-card').classList.toggle('hidden', !w.card && w.format !== 'canvas');
 }
 
 // Additional embed fields
@@ -1780,14 +1865,22 @@ function scheduleWelcomePreview() {
   previewTimer = setTimeout(renderWelcomePreview, 150);
 }
 
-// The welcome image, small, drawn separately (without the editor's selection frames)
+// The welcome image, small, drawn separately (without the editor's selection frames).
+// An image that the browser refuses to export (avatar without permission from its site) is left out instead of breaking the preview
 function smallCard() {
-  const small = Object.assign(document.createElement('canvas'), { width: 480, height: 270 });
-  const c = small.getContext('2d');
-  c.scale(480 / R.W, 270 / R.H);
   const { user } = state.me;
-  R.drawCard(c, welcome(), { banner: editor.banner, avatar: editor.avatar }, { user: user.username, name: user.username, server: state.data.guild.name, count: state.data.guild.members }, cardTranslate());
-  return small.toDataURL('image/jpeg', 0.8);
+  const draw = (assets) => {
+    const small = Object.assign(document.createElement('canvas'), { width: 480, height: 270 });
+    const c = small.getContext('2d');
+    c.scale(480 / R.W, 270 / R.H);
+    R.drawCard(c, welcome(), assets, { user: user.username, name: user.username, server: state.data.guild.name, count: state.data.guild.members }, cardTranslate());
+    return small.toDataURL('image/jpeg', 0.8);
+  };
+  try {
+    return draw({ banner: editor.banner, avatar: editor.avatar });
+  } catch {
+    return draw({ banner: editor.banner, avatar: null });
+  }
 }
 
 function renderWelcomePreview() {
@@ -1798,7 +1891,8 @@ function renderWelcomePreview() {
   // {user} becomes a blue mention in the preview
   const fill = (text) =>
     markdown(R.fillVars(text, { user: '\u0001', name: user.username, server: guild.name, count: guild.members })).replaceAll('\u0001', `<span class="dc-mention">@${esc(user.username)}</span>`);
-  const image = w.card ? `<img class="dc-image" src="${smallCard()}" alt="">` : '';
+  const card = w.card || w.format === 'canvas' ? smallCard() : null;
+  const image = card ? `<img class="dc-image" src="${card}" alt="">` : '';
   let body = w.message.trim() ? `<div class="dc-content">${fill(w.message)}</div>` : '';
 
   if (w.format === 'embed') {

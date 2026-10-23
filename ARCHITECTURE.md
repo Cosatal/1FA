@@ -50,6 +50,7 @@ src/
 | `credits.js` | Invite link, bot status and "Made by" credit. |
 | `public-fetch.js` | Safe web requests to addresses given by a server (blocks the VPS's private network). |
 | `fonts.js` | Fonts uploaded from the dashboard for the welcome image. |
+| `activity.js` | Activity log of each server (dashboard "Logs" tab): call `logActivity(guildId, { source, action, title, author, data })` to add an entry. |
 
 ### `src/features/`: what the bot does
 
@@ -106,6 +107,7 @@ module.exports = {
 | `modules.js` | Tabs for reaction roles, moderation, polls, giveaways, alerts. |
 | `features.js` | Builds the forms of the schema-based features automatically. |
 | `insights.js`, `chart.js` | Statistics tab, backup tab and their charts. |
+| `activity.js` | Logs tab: filters by source, author, action and dates. |
 | `common.js` | Helpers shared by all pages (`$`, `api`, `toast`…). |
 | `card-renderer.js` | Draws the welcome image. **Shared with the bot**, so the preview looks exactly like the real image. |
 | `i18n.js`, `i18n-en.js`, `lang.js` | French → English translation, also **shared with the bot**. |

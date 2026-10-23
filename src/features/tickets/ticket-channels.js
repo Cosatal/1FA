@@ -1,11 +1,12 @@
 const {
-  ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, MessageFlags, PermissionFlagsBits, SnowflakeUtil, StringSelectMenuBuilder, parseEmoji,
+  ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, EmbedBuilder, MessageFlags, PermissionFlagsBits, SnowflakeUtil, StringSelectMenuBuilder, UserSelectMenuBuilder, parseEmoji,
 } = require('discord.js');
-const { getTicketConfig, isStaff } = require('./ticket-store');
+const { getTicketConfig, isStaff, staffPanelUrl } = require('./ticket-store');
 const transcripts = require('./transcripts');
 const { resolveAi, askAi } = require('../ai/ai-support');
 const { KEEP, keep } = require('../../dashboard/public/i18n');
 const { PANEL_COLOR } = require('../../core/credits');
+const { logActivity } = require('../../core/activity');
 
 // Tickets: a message with a button, or the ticket types menu, is posted in a channel of the server.
 // Each open ticket is a private channel, visible only to the member, the staff role and the bot.
@@ -24,6 +25,7 @@ function untrack(channelId) {
   const entry = open.get(channelId);
   if (!entry) return null;
   open.delete(channelId);
+  webhooks.delete(channelId);
   if (byMember.get(`${entry.guildId}:${entry.userId}`) === channelId) byMember.delete(`${entry.guildId}:${entry.userId}`);
   return entry;
 }
@@ -71,8 +73,23 @@ async function publishTicketPanel(guild, config) {
 
 // ---------- Opening ----------
 
-const closeButton = () => new ButtonBuilder().setCustomId('tk:close').setStyle(ButtonStyle.Danger).setLabel('Fermer le ticket').setEmoji('🔒');
-const staffButton = () => new ButtonBuilder().setCustomId('tk:staff').setStyle(ButtonStyle.Secondary).setLabel('Parler à l’équipe').setEmoji('👤');
+// Buttons under the opening message: close, claim (or who claimed it), add a member, and "talk to the team" while the AI answers
+function ticketButtons({ ai = false, claimedBy = null } = {}) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('tk:close').setStyle(ButtonStyle.Danger).setLabel('Fermer').setEmoji('🔒'),
+    claimedBy
+      ? new ButtonBuilder().setCustomId('tk:claim').setStyle(ButtonStyle.Success).setLabel(keep(`Pris en charge par ${claimedBy}`, 80)).setEmoji('🙋').setDisabled(true)
+      : new ButtonBuilder().setCustomId('tk:claim').setStyle(ButtonStyle.Secondary).setLabel('Prendre en charge').setEmoji('🙋'),
+    new ButtonBuilder().setCustomId('tk:adduser').setStyle(ButtonStyle.Secondary).setLabel('Ajouter un membre').setEmoji('👤'),
+    ...(ai ? [new ButtonBuilder().setCustomId('tk:staff').setStyle(ButtonStyle.Primary).setLabel('Parler à l’équipe').setEmoji('💬')] : []),
+  );
+}
+
+// How a staff member appears in a ticket: "(Role) Name", the role shown separately in the member list, otherwise the highest
+function staffSignature(member) {
+  const role = member.roles.hoist ?? member.roles.highest;
+  return `${role && role.id !== member.guild.id ? `(${role.name}) ` : ''}${member.displayName}`;
+}
 
 async function openChannelTicket(interaction) {
   const { guild, user } = interaction;
@@ -116,7 +133,9 @@ async function createTicketChannel(interaction, config) {
         { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
         { id: user.id, allow },
         ...(staffRole ? [{ id: staffRole.id, allow: [...allow, PermissionFlagsBits.ManageMessages] }] : []),
-        { id: guild.client.user.id, allow: [...allow, PermissionFlagsBits.ManageChannels] },
+        // The bot also deletes the staff's messages to post them again with their role (see relayStaffMessage).
+        // A permission can only be given in a channel if the bot has it on the server: otherwise the channel couldn't be created
+        { id: guild.client.user.id, allow: [...allow, PermissionFlagsBits.ManageChannels, ...(guild.members.me.permissions.has(PermissionFlagsBits.ManageMessages) ? [PermissionFlagsBits.ManageMessages] : [])] },
       ],
       reason: `Ticket de ${user.tag}`,
     });
@@ -130,27 +149,71 @@ async function createTicketChannel(interaction, config) {
   transcripts.createTicket({ guildId: guild.id, id, user: { id: user.id, tag: user.tag, avatar: user.displayAvatarURL({ size: 64 }) }, type, channelId: channel.id });
   if (ai) transcripts.updateTicket(guild.id, id, { ai: true });
   track(channel.id, { guildId: guild.id, ticketId: id, userId: user.id, type, ai });
+  logActivity(guild.id, { source: 'tickets', action: 'ticket.opened', title: `${member.displayName} a ouvert un ticket${type ? ` (${type})` : ''}`, author: member, data: { salon: channel.name } });
 
   const embed = new EmbedBuilder()
     .setColor(PANEL_COLOR)
-    .setAuthor({ name: guild.client.user.username, iconURL: guild.client.user.displayAvatarURL() })
+    .setTitle(type ? `🎫 Ticket — ${type}` : '🎫 Ticket')
     // Dashboard message as is; without a message, the bot's text (translated according to the server language)
-    .setDescription(config.received.trim() ? fill(config.received.trim(), guild) : 'Ton ticket est ouvert : explique ta demande ici, l’équipe va te répondre.');
-  if (type) embed.addFields({ name: 'Type de demande', value: keep(type, 1024) });
+    .setDescription(config.received.trim() ? fill(config.received.trim(), guild) : 'Merci d’avoir ouvert un ticket. Un membre du staff arrivera bientôt.')
+    .addFields(
+      { name: 'Ouvert par', value: `${member}`, inline: true },
+      { name: 'Date', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+    )
+    .setFooter({ text: guild.name, iconURL: guild.iconURL() ?? undefined })
+    .setTimestamp();
   if (ai) {
     embed.addFields({ name: '🤖 Assistant IA', value: 'Pose ta question ici : l’assistant IA te répond tout de suite. Clique sur « Parler à l’équipe » si tu préfères un humain.' });
   }
   // With the AI, staff is only mentioned if the member asks for the team
   const ping = staffRole && !ai;
-  await channel
+  const opening = await channel
     .send({
       content: `${member}${ping ? ` ${staffRole}` : ''}`,
       embeds: [embed],
-      components: [new ActionRowBuilder().addComponents(...(ai ? [staffButton()] : []), closeButton())],
+      components: [ticketButtons({ ai })],
       allowedMentions: { users: [user.id], roles: ping ? [staffRole.id] : [] },
     })
-    .catch(() => {});
+    .catch(() => null);
+  // Kept to update its buttons later ("Pris en charge par…", end of the AI)
+  if (opening) transcripts.updateTicket(guild.id, id, { openingMessageId: opening.id });
   await interaction.editReply(`✅ Ton ticket est ouvert : ${channel}`);
+  await notifyStaff(guild, id);
+}
+
+// ---------- Staff notifications ----------
+
+// Each new ticket is announced in the staff channel chosen in the dashboard (staff role mentioned). When the ticket is closed,
+// the same message becomes "Ticket fermé" (or a new one is posted if it was deleted). No channel chosen: nothing is sent.
+// The id of the message is kept in the ticket (notifyMessageId).
+async function notifyStaff(guild, ticketId, closedBy = null) {
+  const config = getTicketConfig(guild.id);
+  const channel = config.notifyChannelId && guild.channels.cache.get(config.notifyChannelId);
+  const ticket = transcripts.getTicket(guild.id, ticketId);
+  if (!channel?.isTextBased() || !ticket) return;
+
+  const previous = transcripts.userTickets(guild.id, ticket.user.id).filter((t) => t.id !== ticket.id).length;
+  const preview = ticket.messages.find((m) => m.from === 'member' && m.content)?.content;
+  const link = `📂 **[Ouvrir le ticket dans le panel](${staffPanelUrl(`${guild.id}/${ticket.id}`)})**`;
+  const embed = new EmbedBuilder()
+    .setColor(closedBy ? 0x3ba55c : PANEL_COLOR)
+    .setAuthor({ name: ticket.user.tag, iconURL: ticket.user.avatar ?? undefined })
+    .setTitle(`${closedBy ? '✅ Ticket fermé' : '📬 Nouveau ticket'}${ticket.type ? ` — ${ticket.type}` : ''}`)
+    // First message of the member, as a quote
+    .setDescription(preview ? `> ${preview.slice(0, 300).replace(/\n/g, ' ')}\n\n${link}` : link)
+    .addFields(
+      { name: 'Membre', value: `<@${ticket.user.id}> · \`${ticket.user.id}\``, inline: true },
+      { name: 'Tickets précédents', value: previous ? `[${previous}](${staffPanelUrl(`${guild.id}/u/${ticket.user.id}`)})` : '0', inline: true },
+      closedBy ? { name: 'Fermé par', value: closedBy.slice(0, 1024), inline: true } : { name: 'Salon', value: `<#${ticket.channelId}>`, inline: true },
+      ...(ticket.claimedBy ? [{ name: 'Pris en charge par', value: `<@${ticket.claimedBy.id}>`, inline: true }] : []),
+    )
+    .setTimestamp(closedBy ? ticket.closedAt ?? Date.now() : ticket.openedAt);
+  const staffId = config.staffId && guild.roles.cache.has(config.staffId) ? config.staffId : '';
+  const payload = { content: staffId ? `<@&${staffId}>` : undefined, embeds: [embed], allowedMentions: { roles: staffId && !closedBy ? [staffId] : [] } };
+
+  const old = ticket.notifyMessageId ? await channel.messages.fetch(ticket.notifyMessageId).catch(() => null) : null;
+  const message = old ? await old.edit(payload).catch(() => null) : await channel.send(payload).catch(() => null);
+  if (message && message.id !== ticket.notifyMessageId) transcripts.updateTicket(guild.id, ticket.id, { notifyMessageId: message.id });
 }
 
 // ---------- AI assistant ----------
@@ -182,12 +245,15 @@ function stopAi(channelId) {
 
 // ---------- Closing ----------
 
-// Closing (channel button or staff panel): saved, the member gets the closing message in DMs, the channel is deleted
-async function closeChannelTicket(guild, ticketId, closedBy) {
+// Closing (channel button or staff panel): saved, the member gets the closing message in DMs, the channel is deleted.
+// by: the member who closed it (for the Logs tab), from: where ("Discord" or "panel staff")
+async function closeChannelTicket(guild, ticketId, closedBy, by = null, from = 'Discord') {
   const ticket = transcripts.getTicket(guild.id, ticketId);
   if (!ticket || ticket.closedAt) return;
   transcripts.updateTicket(guild.id, ticketId, { closedAt: Date.now(), closedBy });
   untrack(ticket.channelId);
+  logActivity(guild.id, { source: 'tickets', action: 'ticket.closed', title: `Ticket de ${ticket.user.tag} fermé par ${closedBy} (${from})`, author: by });
+  notifyStaff(guild, ticketId, closedBy).catch(() => {});
 
   const config = getTicketConfig(guild.id);
   if (config.closed.trim()) {
@@ -205,19 +271,71 @@ async function closeChannelTicket(guild, ticketId, closedBy) {
 
 // ---------- Buttons and menu ("tk:" prefix) ----------
 
+// The opening message's buttons follow the ticket: AI still answering, claimed by someone
+async function refreshButtons(channel, ticketId) {
+  const ticket = transcripts.getTicket(channel.guild.id, ticketId);
+  const message = ticket?.openingMessageId && (await channel.messages.fetch(ticket.openingMessageId).catch(() => null));
+  const entry = open.get(channel.id);
+  await message?.edit({ components: [ticketButtons({ ai: entry?.ai, claimedBy: ticket.claimedBy?.name })] }).catch(() => {});
+}
+
 async function handleTicketPanel(interaction) {
   if (interaction.customId === 'tk:open') return openChannelTicket(interaction);
   const entry = open.get(interaction.channelId);
   if (!entry) return interaction.reply({ content: 'Ce ticket est déjà fermé.', flags: MessageFlags.Ephemeral });
-  // Staff or the ticket's author can use its buttons
-  if (interaction.user.id !== entry.userId && !isStaff(interaction.member)) {
+  const { guild, member, channel } = interaction;
+  const staff = isStaff(member);
+  // Staff or the ticket's author can use its buttons; claiming and adding members are for the staff
+  if (interaction.user.id !== entry.userId && !staff) {
     return interaction.reply({ content: 'Seuls le staff et l’auteur du ticket peuvent utiliser ces boutons.', flags: MessageFlags.Ephemeral });
+  }
+  if (['tk:claim', 'tk:adduser', 'tk:adduser:pick'].includes(interaction.customId) && !staff) {
+    return interaction.reply({ content: 'Réservé au staff.', flags: MessageFlags.Ephemeral });
+  }
+
+  // A staff member takes the ticket: everyone sees who handles it, the AI goes quiet
+  if (interaction.customId === 'tk:claim') {
+    const ticket = transcripts.getTicket(guild.id, entry.ticketId);
+    if (ticket?.claimedBy) return interaction.reply({ content: `Ce ticket est déjà pris en charge par **${ticket.claimedBy.name}**.`, flags: MessageFlags.Ephemeral });
+    const signature = staffSignature(member);
+    stopAi(channel.id);
+    transcripts.updateTicket(guild.id, entry.ticketId, { claimedBy: { id: member.id, name: member.displayName } });
+    await interaction.update({ components: [ticketButtons({ claimedBy: member.displayName })] });
+    await channel.send({ content: `🙋 **${keep(signature)}** prend en charge ce ticket.`, allowedMentions: { parse: [] } }).catch(() => {});
+    logActivity(guild.id, { source: 'tickets', action: 'ticket.claimed', title: `${member.displayName} a pris en charge le ticket de ${ticket.user.tag}`, author: member });
+    return notifyStaff(guild, entry.ticketId).catch(() => {});
+  }
+
+  // Add a member: a menu to pick them, only visible to the staff member who clicked
+  if (interaction.customId === 'tk:adduser') {
+    return interaction.reply({
+      content: 'Qui veux-tu ajouter à ce ticket ?',
+      components: [new ActionRowBuilder().addComponents(new UserSelectMenuBuilder().setCustomId('tk:adduser:pick').setPlaceholder('Choisis un ou plusieurs membres…').setMinValues(1).setMaxValues(5))],
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+  if (interaction.customId === 'tk:adduser:pick') {
+    const added = [];
+    for (const user of interaction.users.values()) {
+      if (user.bot || user.id === entry.userId) continue;
+      const ok = await channel.permissionOverwrites
+        .edit(user.id, { ViewChannel: true, SendMessages: true, ReadMessageHistory: true, AttachFiles: true, EmbedLinks: true }, { reason: `Ajouté au ticket par ${member.user.tag}` })
+        .then(() => true, () => false);
+      if (ok) added.push(user);
+    }
+    if (!added.length) return interaction.update({ content: '❌ Personne n’a été ajouté (il me faut la permission « Gérer les rôles »).', components: [] });
+    await interaction.update({ content: `✅ ${added.map((u) => `${u}`).join(', ')} ajouté${added.length > 1 ? 's' : ''} au ticket.`, components: [] });
+    await channel.send({ content: `➕ ${member} a ajouté ${added.map((u) => `${u}`).join(', ')} au ticket.`, allowedMentions: { users: added.map((u) => u.id) } }).catch(() => {});
+    logActivity(guild.id, { source: 'tickets', action: 'ticket.member_added', title: `${member.displayName} a ajouté ${added.map((u) => u.username).join(', ')} à un ticket`, author: member, data: { salon: channel.name } });
+    return;
   }
 
   if (interaction.customId === 'tk:staff') {
     stopAi(interaction.channelId);
-    // The button disappears, only "Fermer" remains
-    await interaction.update({ components: [new ActionRowBuilder().addComponents(closeButton())] });
+    logActivity(interaction.guild.id, { source: 'tickets', action: 'ticket.team_requested', title: `${interaction.member.displayName} a demandé à parler à l’équipe`, author: interaction.member, data: { salon: interaction.channel.name } });
+    // The "talk to the team" button disappears
+    const ticket = transcripts.getTicket(guild.id, entry.ticketId);
+    await interaction.update({ components: [ticketButtons({ claimedBy: ticket?.claimedBy?.name })] });
     const staffId = getTicketConfig(interaction.guild.id).staffId;
     await interaction.channel
       .send({
@@ -229,37 +347,55 @@ async function handleTicketPanel(interaction) {
   }
   if (interaction.customId !== 'tk:close') return;
   await interaction.deferUpdate();
-  await closeChannelTicket(interaction.guild, entry.ticketId, interaction.member.displayName);
+  await closeChannelTicket(interaction.guild, entry.ticketId, interaction.member.displayName, interaction.member);
 }
 
 // ---------- Messages written in a ticket channel: copied to the staff panel ----------
 
 async function handleTicketChannelMessage(message) {
   const entry = open.get(message.channelId);
-  if (!entry || message.author.bot) return;
+  if (!entry || message.author.bot || message.webhookId) return;
   const fromMember = message.author.id === entry.userId;
-  // A staff member takes over: the AI goes quiet
-  if (!fromMember) stopAi(message.channelId);
+  const staff = !fromMember && message.member && isStaff(message.member);
+  // A staff member takes over: the AI goes quiet (and its "talk to the team" button disappears)
+  if (!fromMember && stopAi(message.channelId)) refreshButtons(message.channel, entry.ticketId).catch(() => {});
+  // Saved (files copied) before the staff message is posted again, while its attachments still exist
   await transcripts.addMessage(entry.guildId, entry.ticketId, {
     from: fromMember ? 'member' : 'staff',
-    author: fromMember ? message.author.tag : message.member?.displayName ?? message.author.username,
+    author: fromMember ? message.author.tag : staff ? staffSignature(message.member) : message.member?.displayName ?? message.author.username,
     content: message.content,
     attachments: message.attachments,
     mid: message.id,
   });
+  if (staff) await relayStaffMessage(message).catch(() => {});
   if (fromMember && entry.ai) askAi(message.channel, () => aiContext(message.channel));
 }
 
-// Reply written from the staff panel: posted in the ticket channel
-async function replyInChannel(guild, ticket, signature, { content, file }) {
-  const channel = guild.channels.cache.get(ticket.channelId);
-  if (!channel) throw new Error('Le salon de ce ticket n’existe plus.');
-  stopAi(ticket.channelId); // staff replies: the AI goes quiet
-  await channel.send({
-    content: `${KEEP}**${signature}:**${content ? ` ${content}` : ''}`,
-    files: file ? [{ attachment: file.buffer, name: file.name }] : [],
-    allowedMentions: { parse: [] },
-  });
+// ---------- Staff messages shown with their role ----------
+// A staff member writes in a ticket: the bot posts the message again as "(Role) Name", with their avatar (webhook of the
+// channel), then deletes the original. Without "Gérer les webhooks", the bot posts it itself as "**(Role) Name :** message".
+// Nothing is changed if the bot can't delete the original (the message just stays as it is).
+const webhooks = new Map(); // channelId → webhook
+async function webhookFor(channel) {
+  if (webhooks.has(channel.id)) return webhooks.get(channel.id);
+  if (!channel.guild.members.me.permissionsIn(channel).has(PermissionFlagsBits.ManageWebhooks)) return null;
+  const existing = (await channel.fetchWebhooks().catch(() => null))?.find((w) => w.owner?.id === channel.client.user.id);
+  const webhook = existing ?? (await channel.createWebhook({ name: 'Tickets', reason: 'Messages du staff dans les tickets' }).catch(() => null));
+  if (webhook) webhooks.set(channel.id, webhook);
+  return webhook;
+}
+
+async function relayStaffMessage(message) {
+  const { channel, member } = message;
+  if (!channel.guild.members.me.permissionsIn(channel).has(PermissionFlagsBits.ManageMessages)) return;
+  const signature = staffSignature(member);
+  const files = [...message.attachments.values()].map((a) => ({ attachment: a.url, name: a.name }));
+  const webhook = await webhookFor(channel);
+  // Texts written by the staff: never translated (KEEP), and nobody is pinged twice
+  const sent = webhook
+    ? await webhook.send({ username: signature.slice(0, 80), avatarURL: member.displayAvatarURL({ size: 128 }), content: message.content ? `${KEEP}${message.content}` : undefined, files, allowedMentions: { parse: [] } }).catch(() => null)
+    : await channel.send({ content: `${KEEP}**${signature} :**${message.content ? ` ${message.content}` : ''}`, files, allowedMentions: { parse: [] } }).catch(() => null);
+  if (sent) await message.delete().catch(() => {});
 }
 
 // Ticket channel deleted by hand: the ticket is closed
@@ -267,6 +403,8 @@ function handleTicketChannelDelete(channel) {
   const entry = untrack(channel.id);
   if (!entry) return;
   transcripts.updateTicket(entry.guildId, entry.ticketId, { closedAt: Date.now(), closedBy: 'Salon supprimé' });
+  logActivity(entry.guildId, { source: 'tickets', action: 'ticket.channel_deleted', title: `Le salon du ticket #${channel.name} a été supprimé : ticket fermé` });
+  notifyStaff(channel.guild, entry.ticketId, 'Salon supprimé').catch(() => {});
 }
 
 // On startup: finds the channels of open tickets (those deleted while the bot was off are closed)
@@ -281,4 +419,4 @@ function restoreTicketChannels(client) {
   }
 }
 
-module.exports = { publishTicketPanel, handleTicketPanel, closeChannelTicket, handleTicketChannelMessage, replyInChannel, handleTicketChannelDelete, restoreTicketChannels };
+module.exports = { publishTicketPanel, handleTicketPanel, closeChannelTicket, notifyStaff, handleTicketChannelMessage, handleTicketChannelDelete, restoreTicketChannels };

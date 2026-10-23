@@ -10,6 +10,7 @@ const {
   PermissionFlagsBits,
 } = require('discord.js');
 const { createStore } = require('../../core/store');
+const { logActivity } = require('../../core/activity');
 const { LANGUAGES, wordsFor } = require('./insult-lists');
 
 // Checked languages. Older configs (a single "français" checkbox): French, unless it was unchecked
@@ -236,7 +237,9 @@ function startTempbanTimer(client) {
       for (const { userId } of due) {
         removeTempban(guild.id, userId);
         const user = await guild.members.unban(userId, 'Fin du ban temporaire').catch(() => null);
-        if (user) await modLog(guild, { event: 'modUnban', action: 'Fin du ban temporaire', color: 0x3ba55c, target: user, moderator: client.user });
+        if (!user) continue;
+        logActivity(guild.id, { source: 'bot', action: 'tempban.ended', title: `Fin du ban temporaire de ${user.tag} : débanni automatiquement`, data: { id: user.id } });
+        await modLog(guild, { event: 'modUnban', action: 'Fin du ban temporaire', color: 0x3ba55c, target: user, moderator: client.user });
       }
     }
   }, 30000);

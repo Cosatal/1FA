@@ -1,16 +1,15 @@
 const { EmbedBuilder, MessageFlags } = require('discord.js');
-const { getTicketConfig, isStaff } = require('./ticket-store');
+const { getTicketConfig, isStaff, staffPanelUrl } = require('./ticket-store');
 const ticketChannels = require('./ticket-channels');
-const { KEEP } = require('../../dashboard/public/i18n');
 const transcripts = require('./transcripts');
 const { PANEL_COLOR } = require('../../core/credits');
+const { logActivity } = require('../../core/activity');
 
 // Tickets: each ticket is a private channel on the server (ticket-channels.js), also tracked in the staff panel (/staff).
 // Here: staff panel actions, the /tickets command and the reply to DMs (tickets are no longer done in DMs).
 // Settings are in data/tickets.json (dashboard).
 
-// Staff panel URL
-const panelUrl = (hash) => `${process.env.DASHBOARD_URL || `http://localhost:${Number(process.env.DASHBOARD_PORT) || 3000}`}/staff#${hash}`;
+const panelUrl = staffPanelUrl;
 
 const isEmoji = (text) => /^<a?:\w{2,32}:\d{17,20}>$/.test(text) || (!/[\w\s]/.test(text) && [...text].length <= 8);
 
@@ -37,39 +36,17 @@ function handleTicketComponent(interaction) {
 }
 
 // ---------- Staff panel actions ----------
-
-// Staff reply: "(Modérateur) Name: message" in the ticket channel. file: { name, buffer, contentType } or null
-async function replyFromPanel(guild, ticketId, member, { content, file }) {
-  const ticket = transcripts.getTicket(guild.id, ticketId);
-  if (!ticket) throw new Error('Ticket introuvable.');
-  if (ticket.closedAt) throw new Error('Ce ticket est fermé : le membre ne recevra plus de réponse.');
-
-  // The role displayed separately in the member list, otherwise the highest
-  const role = member.roles.hoist ?? member.roles.highest;
-  const signature = `${role && role.id !== guild.id ? `(${role.name}) ` : ''}${member.displayName}`;
-  if (ticket.channelId) {
-    await ticketChannels.replyInChannel(guild, ticket, signature, { content, file });
-  } else {
-    // Old ticket opened in DMs (before DM tickets were removed): the reply still goes by DM
-    try {
-      const user = await guild.client.users.fetch(ticket.user.id);
-      await user.send({ content: `${KEEP}**${signature}:**${content ? ` ${content}` : ''}`, files: file ? [{ attachment: file.buffer, name: file.name }] : [], allowedMentions: { parse: [] } });
-    } catch {
-      throw new Error('Impossible d’envoyer le message : le membre a peut-être fermé ses messages privés ou quitté le serveur.');
-    }
-  }
-  // Saved here: the bot's messages aren't copied from the channel
-  await transcripts.addMessage(guild.id, ticketId, { from: 'staff', author: signature, content, attachments: file ? [file] : [] });
-}
+// The staff reply directly in the ticket channel on Discord (the panel is for reading and closing)
 
 // Closing from the panel: closing message in DMs, channel deleted
 async function closeFromPanel(guild, ticketId, member) {
   const ticket = transcripts.getTicket(guild.id, ticketId);
   if (!ticket) throw new Error('Ticket introuvable.');
   if (ticket.closedAt) throw new Error('Ce ticket est déjà fermé.');
-  if (ticket.channelId) return ticketChannels.closeChannelTicket(guild, ticketId, member.displayName);
+  if (ticket.channelId) return ticketChannels.closeChannelTicket(guild, ticketId, member.displayName, member, 'panel staff');
   // Old DM ticket: simply marked as closed
   transcripts.updateTicket(guild.id, ticketId, { closedAt: Date.now(), closedBy: member.displayName });
+  logActivity(guild.id, { source: 'tickets', action: 'ticket.closed', title: `Ticket de ${ticket.user.tag} fermé par ${member.displayName} (panel staff)`, author: member });
 }
 
 // ---------- /tickets: find a member's tickets ----------
@@ -98,4 +75,4 @@ async function listUserTickets(interaction) {
   await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
-module.exports = { handleDm, handleTicketComponent, replyFromPanel, closeFromPanel, listUserTickets, isStaff, isEmoji };
+module.exports = { handleDm, handleTicketComponent, closeFromPanel, listUserTickets, isStaff, isEmoji };

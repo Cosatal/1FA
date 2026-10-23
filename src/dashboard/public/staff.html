@@ -61,7 +61,7 @@
     <main class="ticket-col">
       <div id="empty" class="empty-state">
         <div class="logo big">📂</div>
-        <p class="muted">Choisis un membre dans la liste pour lire sa conversation et lui répondre.</p>
+        <p class="muted">Choisis un membre dans la liste pour lire sa conversation.</p>
       </div>
       <article id="ticket" class="hidden">
         <header class="ticket-head">
@@ -78,16 +78,11 @@
         </header>
         <div id="t-messages" class="messages"></div>
 
-        <!-- Reply to the member (posted in the ticket channel) -->
-        <form id="composer" class="composer hidden">
-          <div id="c-file" class="c-file hidden"><span></span><button type="button" class="icon" id="c-file-clear" title="Retirer">✕</button></div>
-          <textarea id="c-text" rows="3" maxlength="1800"></textarea>
-          <div class="c-bar">
-            <label class="btn ghost small file">📎 Fichier<input type="file" id="c-file-input" hidden></label>
-            <span class="muted small grow">Posté dans le salon du ticket : « (ton rôle) ton pseudo: message »</span>
-            <button type="submit" id="c-send" class="btn primary small">Envoyer</button>
-          </div>
-        </form>
+        <!-- The staff reply in the ticket channel on Discord: shortcut to it -->
+        <div id="reply-hint" class="composer reply-hint hidden">
+          <span class="muted small grow">💬 Réponds directement dans le salon du ticket sur Discord : ton message y apparaît avec ton rôle.</span>
+          <a id="t-goto" class="btn primary small" target="_blank" rel="noopener">Ouvrir le salon ↗</a>
+        </div>
       </article>
     </main>
   </section>

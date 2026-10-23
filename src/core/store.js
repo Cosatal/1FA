@@ -75,4 +75,4 @@ function createStore(name, defaults) {
   };
 }
 
-module.exports = { createStore, readJson, writeJson, flushStores, DATA_DIR };
+module.exports = { createStore, readJson, writeJson, scheduleWrite, flushStores, DATA_DIR };

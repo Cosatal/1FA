@@ -6,6 +6,7 @@ const INVITE_PERMISSIONS = [
   'ViewChannel', 'SendMessages', 'SendPolls', 'EmbedLinks', 'AttachFiles', 'ReadMessageHistory', 'AddReactions',
   'UseExternalEmojis', 'MentionEveryone', 'ManageMessages', 'ManageChannels', 'ManageRoles', 'ManageGuild',
   'KickMembers', 'BanMembers', 'ModerateMembers', 'ViewAuditLog', 'MoveMembers', 'Connect', 'CreatePublicThreads', 'SendMessagesInThreads',
+  'ManageWebhooks', // staff messages in tickets, shown with their name, avatar and role
 ].reduce((all, name) => all | PermissionFlagsBits[name], 0n);
 
 // Link to add the bot to a server (guildId: preselected server)
