@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Classement</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme.js"></script>
+  <style>
+    .lb { max-width: 860px; margin: 0 auto; padding: 36px 16px 48px; }
+    .lb-head { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; }
+    .lb-head img { width: 72px; height: 72px; border-radius: 20px; background: var(--panel-2); }
+    .lb-head h1 { margin: 0 0 4px; }
+    .lb-row { display: grid; grid-template-columns: 48px 44px 1fr auto; align-items: center; gap: 14px; padding: 12px 16px; background: var(--panel); border-radius: 12px; margin-bottom: 8px; }
+    .lb-rank { font-weight: 700; font-size: 18px; text-align: center; color: var(--muted); }
+    .lb-row:nth-child(1) .lb-rank { color: #f5c542; }
+    .lb-row:nth-child(2) .lb-rank { color: #c0c6d0; }
+    .lb-row:nth-child(3) .lb-rank { color: #d08a4a; }
+    .lb-row img { width: 44px; height: 44px; border-radius: 50%; }
+    .lb-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lb-bar { height: 6px; border-radius: 3px; background: var(--panel-2); margin-top: 6px; overflow: hidden; }
+    .lb-bar span { display: block; height: 100%; background: var(--accent); }
+    .lb-level { text-align: right; }
+    .lb-level strong { display: block; font-size: 20px; color: var(--accent-2); }
+    .lb-more { display: block; margin: 18px auto 0; }
+    @media (max-width: 520px) { .lb-row { grid-template-columns: 32px 36px 1fr auto; gap: 10px; padding: 10px; } .lb-row img { width: 36px; height: 36px; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="brand"><img class="brand-logo" id="bot-avatar" alt=""><span id="bot-name">Classement</span></a>
+    <select id="lang-switch" class="lang-switch" title="Langue" translate="no" style="margin-right:0"><option value="fr">🇫🇷 FR</option><option value="en">🇬🇧 EN</option></select>
+  </header>
+  <main class="lb">
+    <div class="lb-head"><img id="guild-icon" alt=""><div><h1 id="guild-name">Classement</h1><span class="muted" id="guild-info"></span></div></div>
+    <div id="list"><div class="empty">Chargement…</div></div>
+    <button id="more" class="btn ghost lb-more hidden">Voir la suite</button>
+  </main>
+  <script src="/i18n.js"></script>
+  <script src="/i18n-en.js"></script>
+  <script src="/lang.js"></script>
+  <script src="/common.js"></script>
+  <script src="/leaderboard.js"></script>
+</body>
+</html>

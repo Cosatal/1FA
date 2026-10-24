@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard du bot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/theme.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a href="#" class="brand"><img class="brand-logo bot-avatar" alt=""><span class="bot-name">Dashboard</span></a>
+    <select id="lang-switch" class="lang-switch" title="Langue" translate="no"><option value="fr">🇫🇷 FR</option><option value="en">🇬🇧 EN</option></select>
+    <div id="user" class="user hidden">
+      <img id="user-avatar" alt="">
+      <span id="user-name"></span>
+      <button id="logout" class="btn ghost small">Déconnexion</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Login -->
+    <section id="view-login" class="view hidden">
+      <div class="landing">
+        <div class="landing-hero">
+          <img class="landing-logo bot-avatar" alt="">
+          <h1><span class="bot-name">1FA</span> <span class="landing-sub">— One For All</span></h1>
+          <p class="landing-tagline">Le bot Discord tout-en-un, puissant et <b>100 % gratuit</b> pour tout le monde.</p>
+          <div class="landing-buttons">
+            <a class="btn primary big invite-link" href="#" target="_blank" rel="noopener">➕ Ajouter à Discord</a>
+            <a class="btn discord big" href="/login">⚙️ Ouvrir le dashboard</a>
+          </div>
+          <p class="landing-stats hidden"><b id="about-servers"></b> serveurs · <b id="about-members"></b> membres</p>
+          <p class="credit">Made by <b class="creator-name"></b></p>
+          <p class="credit-free">💚 1FA est 100 % gratuit. Si tu as payé pour l’avoir, c’est une arnaque : <a class="official-link" href="#" target="_blank" rel="noopener">version officielle</a></p>
+        </div>
+        <div class="landing-grid">
+          <div class="landing-card"><span>👋</span><h3>Bienvenue & captcha</h3><p>Message, image personnalisée, MP, rôles automatiques et vérification anti-bots.</p></div>
+          <div class="landing-card"><span>🏆</span><h3>Niveaux</h3><p>XP en discutant et en vocal, rôles aux paliers, carte /rank et classement public.</p></div>
+          <div class="landing-card"><span>🛡️</span><h3>Modération</h3><p>AutoMod, avertissements, sanctions temporaires et logs détaillés.</p></div>
+          <div class="landing-card"><span>🚨</span><h3>Anti-raid</h3><p>Verrouillage automatique en cas de raid et blocage des comptes trop récents.</p></div>
+          <div class="landing-card"><span>🎫</span><h3>Tickets avec IA</h3><p>Un salon privé par ticket, l’IA répond en premier, le staff prend le relais sur Discord ou sur un panel web.</p></div>
+          <div class="landing-card"><span>🎭</span><h3>Rôles-réactions</h3><p>Boutons, menus ou réactions pour que chacun choisisse ses rôles.</p></div>
+          <div class="landing-card"><span>⌨️</span><h3>Commandes perso</h3><p>Tes propres commandes slash, et des messages automatiques réguliers.</p></div>
+          <div class="landing-card"><span>💡</span><h3>Communauté</h3><p>Suggestions, starboard, anniversaires, sondages et giveaways.</p></div>
+          <div class="landing-card"><span>📨</span><h3>Invitations</h3><p>Qui a invité qui, avec le classement des meilleurs inviteurs.</p></div>
+          <div class="landing-card"><span>🔊</span><h3>Vocaux temporaires</h3><p>Chacun crée son salon vocal, supprimé automatiquement quand il se vide.</p></div>
+          <div class="landing-card"><span>📈</span><h3>Compteurs</h3><p>Des salons qui affichent les membres, les boosts… en direct.</p></div>
+          <div class="landing-card"><span>🔔</span><h3>Alertes réseaux</h3><p>Twitch, YouTube, TikTok, X, Instagram, Reddit : ton serveur est prévenu.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Server choice -->
+    <section id="view-guilds" class="view hidden page">
+      <h1>Choisis un serveur</h1>
+      <p class="muted">Les serveurs où tu peux « Gérer le serveur ». Ajoute le bot à ceux où il n'est pas encore.</p>
+      <div id="guild-list" class="guild-grid"></div>
+      <p class="credit">Made by <b class="creator-name"></b></p>
+      <p class="credit-free">💚 1FA est 100 % gratuit. Si tu as payé pour l’avoir, c’est une arnaque : <a class="official-link" href="#" target="_blank" rel="noopener">version officielle</a></p>
+    </section>
+
+    <!-- Settings of a server -->
+    <section id="view-guild" class="view hidden layout">
+      <aside class="sidebar">
+        <!-- Server switcher -->
+        <div class="guild-switch">
+          <button id="guild-switch" class="guild-head" type="button">
+            <img id="guild-icon" alt="">
+            <strong id="guild-name"></strong>
+            <span class="chevron">▾</span>
+          </button>
+          <div id="guild-menu" class="guild-menu hidden"></div>
+        </div>
+        <nav>
+          <a class="tab" data-tab="home"><span class="ico">📊</span>Tableau de bord</a>
+          <a class="tab" data-tab="stats"><span class="ico">📈</span>Statistiques</a>
+          <a class="tab" href="/staff" target="_blank"><span class="ico">🗂️</span>Panel des tickets <span class="ext">↗</span></a>
+          <div class="nav-label">Essentiels</div>
+          <a class="tab" data-tab="welcome"><span class="dot"></span><span class="ico">👋</span>Bienvenue</a>
+          <a class="tab" data-tab="levels"><span class="dot"></span><span class="ico">🏆</span>Niveaux</a>
+          <a class="tab" data-tab="roles"><span class="dot"></span><span class="ico">🎭</span>Rôles-réactions</a>
+          <a class="tab" data-tab="moderation"><span class="dot"></span><span class="ico">🛡️</span>Modération</a>
+          <div class="nav-label">Sécurité</div>
+          <a class="tab" data-tab="captcha"><span class="dot"></span><span class="ico">🔐</span>Captcha</a>
+          <a class="tab" data-tab="antiRaid"><span class="dot"></span><span class="ico">🚨</span>Anti-raid</a>
+          <a class="tab" data-tab="cases"><span class="dot"></span><span class="ico">⚖️</span>Cas et appels</a>
+          <a class="tab" data-tab="aiModeration"><span class="dot"></span><span class="ico">🤖</span>Modération IA</a>
+          <a class="tab" data-tab="invites"><span class="dot"></span><span class="ico">📨</span>Invitations</a>
+          <div class="nav-label">Gestion du serveur</div>
+          <a class="tab" data-tab="tickets"><span class="dot"></span><span class="ico">🎫</span>Tickets</a>
+          <a class="tab" data-tab="botCommands"><span class="dot on"></span><span class="ico">🤖</span>Commandes du bot</a>
+          <a class="tab" data-tab="backup"><span class="ico">💾</span>Sauvegarde</a>
+          <a class="tab" data-tab="logs"><span class="ico">📜</span>Logs</a>
+          <a class="tab" data-tab="commands"><span class="dot"></span><span class="ico">⌨️</span>Commandes perso</a>
+          <a class="tab" data-tab="autoMessages"><span class="dot"></span><span class="ico">⏰</span>Messages auto</a>
+          <a class="tab" data-tab="announce"><span class="dot on"></span><span class="ico">📢</span>Annonces</a>
+          <a class="tab" data-tab="polls"><span class="dot on"></span><span class="ico">📊</span>Sondages</a>
+          <div class="nav-label">Communauté</div>
+          <a class="tab" data-tab="suggestions"><span class="dot"></span><span class="ico">💡</span>Suggestions</a>
+          <a class="tab" data-tab="starboard"><span class="dot"></span><span class="ico">⭐</span>Starboard</a>
+          <a class="tab" data-tab="birthdays"><span class="dot"></span><span class="ico">🎂</span>Anniversaires</a>
+          <a class="tab" data-tab="giveaways"><span class="dot"></span><span class="ico">🎉</span>Giveaways</a>
+          <div class="nav-label">Utilitaires</div>
+          <a class="tab" data-tab="ai"><span class="ico">🧠</span>IA du serveur</a>
+          <a class="tab" data-tab="aiTools"><span class="dot"></span><span class="ico">✨</span>Outils IA</a>
+          <a class="tab" data-tab="gameServers"><span class="dot"></span><span class="ico">🎮</span>Serveurs de jeu</a>
+          <a class="tab" data-tab="tempVoice"><span class="dot"></span><span class="ico">🔊</span>Vocaux temporaires</a>
+          <a class="tab" data-tab="counters"><span class="dot"></span><span class="ico">📈</span>Compteurs</a>
+          <a class="tab" data-tab="alerts"><span class="dot"></span><span class="ico">🔔</span>Alertes réseaux</a>
+        </nav>
+        <div class="sidebar-credit">Made by <b class="creator-name"></b><br><a class="official-link" href="#" target="_blank" rel="noopener">💚 100 % gratuit · version officielle</a></div>
+      </aside>
+
+      <div class="content">
+        <!-- Dashboard home -->
+        <div id="tab-home" class="tab-panel hidden">
+          <div class="hero">
+            <div>
+              <h1 id="home-title"></h1>
+              <p class="muted">Configure ton bot module par module. Les changements s’appliquent tout de suite sur Discord.</p>
+              <label class="bot-lang" title="Messages, embeds et boutons du bot sur ce serveur.">🌐 Langue du bot
+                <select id="bot-lang" translate="no"><option value="fr">🇫🇷 Français</option><option value="en">🇬🇧 English</option></select></label>
+            </div>
+            <div class="stats">
+              <div class="stat"><strong id="stat-members"></strong><span>membres</span></div>
+              <a class="stat" href="/staff" target="_blank"><strong id="stat-open"></strong><span>tickets ouverts</span></a>
+              <a class="stat warn" href="/staff" target="_blank"><strong id="stat-waiting"></strong><span>en attente</span></a>
+            </div>
+          </div>
+
+          <div id="home-sections"></div>
+        </div>
+
+        <!-- Tickets -->
+        <div id="tab-tickets" class="tab-panel hidden">
+          <h1>Tickets</h1>
+          <p class="muted">Un bouton « Ouvrir un ticket » dans un salon de ton serveur : chaque ticket devient un salon privé entre le membre et le staff.
+            Le staff peut aussi lire, répondre et fermer les tickets dans le <a href="/staff" target="_blank">📂 panel des tickets</a>.</p>
+
+          <div class="split">
+            <div class="col">
+              <div class="card">
+                <div class="card-head">
+                  <h2>Fonctionnement</h2>
+                  <label class="switch" title="Activer / désactiver"><input type="checkbox" id="t-enabled"><span></span></label>
+                </div>
+                <div class="grid2">
+                  <label>Salon du bouton « Ouvrir un ticket »<select id="t-panel-channel"></select></label>
+                  <label>Rôle staff<select id="t-staff"></select></label>
+                </div>
+                <label>Catégorie des salons de tickets<select id="t-category"></select>
+                  <small>Vide = la catégorie du salon du bouton.</small></label>
+                <label>Salon des notifications du staff<select id="t-notify"></select>
+                  <small>Le bot y annonce chaque nouveau ticket en mentionnant le rôle staff, puis met le message à jour à la fermeture. Vide = pas de notification.</small></label>
+                <small>Chaque ticket crée un salon visible seulement par le membre, le rôle staff et le bot, fermé avec le bouton 🔒. Le bot a besoin de « Gérer les salons » et « Gérer les rôles ».</small>
+                <div class="actions mt">
+                  <button id="t-send-panel" class="btn primary">📤 Envoyer le panneau</button>
+                  <span id="t-panel-link" class="muted small"></span>
+                </div>
+                <small>Poste le message avec le bouton « Ouvrir un ticket » (ou le menu des types) dans le salon choisi. Déjà posté : il est mis à jour ; supprimé : il est reposté.</small>
+              </div>
+
+              <div class="card">
+                <h2>🔒 Accès au panel staff</h2>
+                <p class="muted small">Qui peut ouvrir le <a href="/staff" target="_blank">📂 panel des tickets</a>. Liste vide : le rôle staff et les membres qui peuvent « Gérer le serveur ».
+                  Dès qu’un rôle ou un membre est ajouté, seuls eux y ont accès (et le propriétaire du serveur).</p>
+                <label>Rôles autorisés</label><div id="t-access-roles" class="chips"></div>
+                <label>Membres autorisés</label><div id="t-access-members" class="chips"></div>
+                <div class="member-search">
+                  <input id="t-access-search" placeholder="Ajouter un membre : tape son pseudo…" autocomplete="off" spellcheck="false">
+                  <div id="t-access-results" class="member-results hidden"></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <h2>Messages envoyés au membre</h2>
+                <label>Confirmation à l’ouverture du ticket
+                  <textarea id="t-received" data-ai="ticket" rows="4" maxlength="4000"></textarea>
+                </label>
+                <label>Message de fin, à la fermeture
+                  <textarea id="t-closed" data-ai="ticket" rows="4" maxlength="4000"></textarea>
+                  <small>**gras** · *italique* · __souligné__ · {server} = nom du serveur. Laisse vide pour ne rien envoyer.</small>
+                </label>
+              </div>
+
+              <div class="card">
+                <h2>Message d’accueil</h2>
+                <p class="muted small">Le message posté avec le bouton « Ouvrir un ticket » (ou le menu des types).</p>
+                <label>Titre<input id="t-title" maxlength="256"></label>
+                <label>Description
+                  <textarea id="t-description" data-ai="ticket" rows="6" maxlength="4000"></textarea>
+                  <small>**gras** · *italique* · &gt; citation en début de ligne</small>
+                </label>
+                <div class="row">
+                  <label class="grow">Image en bas (lien https, optionnel)<input id="t-image" placeholder="https://…"></label>
+                </div>
+                <label>Texte du menu des types<input id="t-placeholder" maxlength="150"></label>
+              </div>
+
+              <div class="card">
+                <div class="card-head"><h2>Types de demande</h2><span id="t-count" class="pill"></span></div>
+                <p class="muted small">Le membre choisit un type au début. Sans type, le bot ne pose pas la question.</p>
+                <div id="t-options" class="options"></div>
+                <button id="t-add" class="btn ghost">+ Ajouter une option</button>
+              </div>
+
+              <div class="card">
+                <div class="card-head">
+                  <h2>🤖 Assistant IA</h2>
+                  <label class="switch" title="Activer / désactiver"><input type="checkbox" id="t-ai-enabled"><span></span></label>
+                </div>
+                <p class="muted small">L’IA répond en premier dans le salon du ticket. Elle se tait dès qu’un membre du staff écrit, ou quand le membre clique sur « Parler à l’équipe » (le rôle staff est alors mentionné).</p>
+                <div id="t-ai-used" class="ai-used"></div>
+                <label>Ce que l’IA doit savoir sur ton serveur
+                  <textarea id="t-ai-instructions" rows="8" maxlength="8000" placeholder="Règles du serveur, réponses aux questions fréquentes, comment devenir staff, liens utiles…"></textarea>
+                  <small>L’IA s’appuie uniquement sur ces infos pour parler du serveur, et renvoie vers l’équipe quand elle ne sait pas.</small>
+                </label>
+              </div>
+
+            </div>
+
+            <div class="col preview-col">
+              <div class="card sticky">
+                <h2>Aperçu : panneau, salon du ticket et MP de fin</h2>
+                <div id="t-preview" class="discord"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Welcome -->
+        <div id="tab-welcome" class="tab-panel hidden">
+          <h1>Bienvenue et au revoir</h1>
+          <p class="muted">Accueille les nouveaux membres, vérifie qu’ils sont humains, donne-leur des rôles et préviens quand quelqu’un s’en va.
+            Variables dans tous les textes : <code>{user}</code> (mention) · <code>{name}</code> · <code>{server}</code> · <code>{count}</code> (nombre de membres).</p>
+
+          <div id="w-intent" class="alert hidden">
+            ⚠️ Le bot ne reçoit pas encore les arrivées de membres. Active <b>Server Members Intent</b> dans le Developer Portal
+            (onglet Bot) puis redémarre le bot : il le détecte tout seul.
+            L’aperçu fonctionne quand même.
+          </div>
+
+          <!-- Welcome message -->
+          <div class="split">
+            <div class="col">
+              <div class="card">
+                <div class="card-head">
+                  <h2>👋 Envoyer un message quand un membre rejoint le serveur</h2>
+                  <label class="switch" title="Activer / désactiver"><input type="checkbox" id="w-enabled"><span></span></label>
+                </div>
+                <div class="w-section" data-for="w-enabled">
+                  <label>Salon des messages de bienvenue<select id="w-channel"></select></label>
+                  <label>Format du message</label>
+                  <div id="w-format" class="segmented w-format">
+                    <button type="button" data-format="embed">Embed</button>
+                    <button type="button" data-format="text">Message simple</button>
+                    <button type="button" data-format="canvas">Canvas</button>
+                  </div>
+                  <small id="w-format-help"></small>
+                  <label class="mt"><span id="w-message-label">Texte du message</span><textarea id="w-message" data-ai="welcome" rows="3" maxlength="2000" placeholder="Bienvenue {user} !"></textarea></label>
+
+                  <div id="w-embed" class="embed-editor">
+                    <div class="grid2">
+                      <label>Couleur de la bande<span class="color"><input type="color" id="w-embed-color-picker"><input id="w-embed-color" maxlength="7"></span></label>
+                      <label>Auteur<input id="w-embed-author" maxlength="256" placeholder="Nom de l’auteur"></label>
+                    </div>
+                    <label>Titre<input id="w-embed-title" maxlength="256"></label>
+                    <label>Description<textarea id="w-embed-description" data-ai="welcome" rows="4" maxlength="4000"></textarea></label>
+                    <label>Champs additionnels</label>
+                    <div id="w-embed-fields" class="options"></div>
+                    <button id="w-embed-add-field" class="btn ghost small" type="button">+ Ajouter un champ</button>
+                    <label class="mt">Bas de page<input id="w-embed-footer" maxlength="2048" placeholder="Texte de bas de page"></label>
+                    <label class="check"><input type="checkbox" id="w-embed-thumbnail"> Avatar du membre en miniature</label>
+                  </div>
+                  <label class="check" id="w-card-row"><input type="checkbox" id="w-card"> Joindre l’image de bienvenue (à personnaliser ci-dessous)</label>
+                </div>
+              </div>
+            </div>
+            <div class="col preview-col">
+              <div class="card sticky"><h2>Aperçu</h2><div id="w-preview" class="discord"></div></div>
+            </div>
+          </div>
+
+          <div id="w-image-card" class="card">
+            <div class="card-head">
+              <h2>Image</h2>
+              <div class="toolbar">
+                <button id="w-add-text" class="btn ghost small">+ Texte</button>
+                <button id="w-render" class="btn ghost small">Rendu final</button>
+                <button id="w-reset-layout" class="btn ghost small">Réinitialiser</button>
+              </div>
+            </div>
+            <div class="stage"><canvas id="w-canvas" width="1920" height="1080" tabindex="0"></canvas></div>
+            <small>Clique sur un élément pour le sélectionner et fais-le glisser pour le déplacer (il s’aimante au centre).
+              Flèches du clavier : déplacement de 1 px, Maj + flèches : 10 px. Clique dans le vide pour régler le fond.</small>
+
+            <div class="editor">
+              <div class="layers">
+                <h3>Calques</h3>
+                <div id="w-layers"></div>
+              </div>
+              <div id="w-props" class="props"></div>
+            </div>
+          </div>
+
+          <!-- Direct message -->
+          <div class="card">
+            <div class="card-head">
+              <h2>✉️ Envoyer un message privé aux nouveaux membres</h2>
+              <label class="switch" title="Activer / désactiver"><input type="checkbox" id="w-dm-on"><span></span></label>
+            </div>
+            <div class="w-section" data-for="w-dm-on">
+              <label>Message<textarea id="w-dm" data-ai="dm" rows="3" maxlength="2000"></textarea></label>
+            </div>
+          </div>
+
+          <!-- Automatic roles -->
+          <div class="card">
+            <div class="card-head">
+              <h2>🎭 Donner un rôle aux nouveaux membres</h2>
+              <label class="switch" title="Activer / désactiver"><input type="checkbox" id="w-autoroles-on"><span></span></label>
+            </div>
+            <div class="w-section" data-for="w-autoroles-on">
+              <label>Rôles à donner</label><div id="w-autoroles" class="chips"></div>
+              <small>Donnés dès l’arrivée, ou après la vérification si le captcha est activé. Seuls les rôles placés sous celui du bot sont proposés.</small>
+            </div>
+          </div>
+
+          <!-- Goodbye -->
+          <div class="card">
+            <div class="card-head">
+              <h2>🚪 Envoyer un message quand un membre quitte le serveur</h2>
+              <label class="switch" title="Activer / désactiver"><input type="checkbox" id="w-bye-on"><span></span></label>
+            </div>
+            <div class="w-section" data-for="w-bye-on">
+              <div class="grid2">
+                <label>Salon<select id="w-bye-channel"></select></label>
+                <label>Message<input id="w-bye" maxlength="2000"></label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Announcements -->
+        <div id="tab-announce" class="tab-panel hidden">
+          <h1>Annonces</h1>
+          <p class="muted">Rédige une annonce et le bot la poste dans le salon choisi.</p>
+
+          <div class="split">
+            <div class="col">
+              <div class="card">
+                <h2>Message</h2>
+                <div class="grid2">
+                  <label>Salon<select id="a-channel"></select></label>
+                  <label>Mention<select id="a-mention"></select></label>
+                </div>
+                <label>Texte (optionnel)
+                  <textarea id="a-content" data-ai="announce" rows="4" maxlength="1900"></textarea>
+                  <small>Le texte s’affiche au-dessus de l’embed. Pour que @everyone / @here pingent vraiment, le bot doit avoir la permission « Mentionner @everyone ».</small>
+                </label>
+              </div>
+
+              <div class="card">
+                <h2>Format</h2>
+                <div id="a-mode" class="segmented">
+                  <button type="button" data-mode="embed">Embed classique</button>
+                  <button type="button" data-mode="v2">Components V2</button>
+                </div>
+                <small id="a-mode-hint"></small>
+              </div>
+
+              <div id="a-v2-card" class="card">
+                <div class="card-head">
+                  <h2>Blocs</h2>
+                  <span id="a-v2-count" class="pill"></span>
+                </div>
+                <div class="row">
+                  <label class="check"><input type="checkbox" id="a-v2-accent"> Barre de couleur à gauche</label>
+                  <label>Couleur
+                    <span class="color"><input type="color" id="a-v2-color-picker"><input id="a-v2-color" maxlength="7"></span>
+                  </label>
+                </div>
+                <div id="a-blocks" class="blocks"></div>
+                <div class="toolbar">
+                  <button class="btn ghost small" data-add="text">+ Texte</button>
+                  <button class="btn ghost small" data-add="section">+ Texte avec miniature</button>
+                  <button class="btn ghost small" data-add="gallery">+ Images</button>
+                  <button class="btn ghost small" data-add="separator">+ Séparateur</button>
+                  <button class="btn ghost small" data-add="buttons">+ Boutons-liens</button>
+                </div>
+              </div>
+
+              <div id="a-embed-card" class="card">
+                <div class="card-head">
+                  <h2>Embed</h2>
+                  <label class="switch" title="Activer / désactiver"><input type="checkbox" id="a-embed"><span></span></label>
+                </div>
+                <div id="a-embed-fields">
+                  <label>Titre<input id="a-title" maxlength="256"></label>
+                  <label>Description
+                    <textarea id="a-description" data-ai="announce" rows="8" maxlength="4000"></textarea>
+                    <small>**gras** · *italique* · &gt; citation en début de ligne</small>
+                  </label>
+                  <div class="row">
+                    <label>Couleur
+                      <span class="color"><input type="color" id="a-color-picker"><input id="a-color" maxlength="7"></span>
+                    </label>
+                    <label class="grow">Image (lien https, optionnel)<input id="a-image" placeholder="https://…"></label>
+                  </div>
+                  <label class="check"><input type="checkbox" id="a-footer"> Afficher le nom du serveur et la date en bas</label>
+                </div>
+              </div>
+
+              <div class="card">
+                <button id="a-send" class="btn primary">Publier l’annonce</button>
+                <p id="a-last" class="muted small"></p>
+                <h3 class="ff-section">📅 Ou la programmer</h3>
+                <div class="row">
+                  <label class="grow">Date et heure d’envoi<input type="datetime-local" id="a-when"></label>
+                  <button id="a-schedule" class="btn ghost" style="margin-top:26px">📅 Programmer</button>
+                </div>
+                <div id="a-scheduled" class="item-list"></div>
+              </div>
+            </div>
+
+            <div class="col preview-col">
+              <div class="card sticky">
+                <h2>Aperçu</h2>
+                <div id="a-preview" class="discord"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reaction roles -->
+        <div id="tab-roles" class="tab-panel hidden">
+          <h1>Rôles-réactions</h1>
+          <p class="muted">Des messages où les membres se donnent eux-mêmes des rôles : notifications, jeux, couleurs, pronoms…</p>
+          <div id="rr-perm" class="alert hidden">⚠️ Le bot n’a pas la permission <b>Gérer les rôles</b>. Il ne pourra donner que les rôles placés sous le sien.</div>
+
+          <div id="rr-list-card" class="card">
+            <div class="card-head"><h2>Panneaux</h2><button id="rr-new" class="btn primary small">+ Nouveau panneau</button></div>
+            <div id="rr-list" class="item-list"></div>
+          </div>
+
+          <div id="rr-editor" class="split hidden">
+            <div class="col">
+              <div class="card">
+                <div class="card-head"><h2 id="rr-editor-title">Nouveau panneau</h2><button id="rr-cancel" class="btn ghost small">Annuler</button></div>
+                <label>Salon<select id="rr-channel"></select></label>
+                <label>Format</label>
+                <div id="rr-mode" class="segmented">
+                  <button type="button" data-mode="buttons">🔘 Boutons</button>
+                  <button type="button" data-mode="select">📋 Menu déroulant</button>
+                  <button type="button" data-mode="reactions">😀 Réactions</button>
+                </div>
+                <label class="mt">Titre<input id="rr-title" maxlength="256"></label>
+                <label>Description<textarea id="rr-description" data-ai="generic" rows="3" maxlength="2000"></textarea></label>
+                <label class="check"><input type="checkbox" id="rr-unique"> Un seul rôle à la fois (choisir un rôle retire les autres)</label>
+              </div>
+              <div class="card">
+                <div class="card-head"><h2>Rôles</h2><span id="rr-count" class="pill"></span></div>
+                <p class="muted small">Seuls les rôles placés sous celui du bot apparaissent : Discord ne lui permet pas de donner les autres.</p>
+                <div id="rr-roles" class="options"></div>
+                <button id="rr-add" class="btn ghost">+ Ajouter un rôle</button>
+              </div>
+              <button id="rr-publish" class="btn primary">Publier le panneau</button>
+            </div>
+            <div class="col preview-col">
+              <div class="card sticky"><h2>Aperçu</h2><div id="rr-preview" class="discord"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Server AI: a single setting (AI, model, key) for the ticket assistant and the AI tools -->
+        <div id="tab-ai" class="tab-panel hidden">
+          <h1>🧠 IA du serveur</h1>
+          <p class="muted">Choisis ton IA et mets ta clé ici, une seule fois : elle sert à tout le bot. Assistant des tickets, bouton ✨ Rédiger,
+            /resume, /traduire et traduction par drapeau.</p>
+          <div class="card">
+            <div class="grid2">
+              <label>IA utilisée<select id="ai-provider"></select></label>
+              <label>Modèle<input id="ai-model" list="ai-models" maxlength="150" autocomplete="off" spellcheck="false"><datalist id="ai-models"></datalist>
+                <small>Vide = automatique (Claude : son modèle par défaut ; les autres : un modèle rapide et économique).</small></label>
+            </div>
+            <div class="actions"><button id="ai-save" class="btn primary">Enregistrer l’IA</button><span id="ai-dirty" class="muted small hidden">Modifications non enregistrées</span></div>
+          </div>
+          <div class="card">
+            <div id="ai-key" class="ai-key"></div>
+            <div id="ai-status" class="alert hidden"></div>
+          </div>
+        </div>
+
+        <!-- Bot commands -->
+        <div id="tab-botCommands" class="tab-panel hidden">
+          <h1>Commandes du bot</h1>
+          <p class="muted">Active ou désactive chaque commande, et limite-la à certains salons ou rôles avec ✏️. Les changements s’appliquent tout de suite.</p>
+          <div class="card">
+            <h2>👥 Pour tout le monde</h2>
+            <p class="muted small">Tous les membres du serveur peuvent les utiliser.</p>
+            <div id="cmd-public" class="command-list"></div>
+          </div>
+          <div class="card">
+            <h2>🛡️ Réservées au staff</h2>
+            <p class="muted small">Seuls les membres qui ont la permission Discord indiquée les voient. Tu peux changer qui y a accès dans Paramètres du serveur → Intégrations → 1FA.</p>
+            <div id="cmd-staff" class="command-list"></div>
+          </div>
+        </div>
+
+        <!-- Moderation -->
+        <div id="tab-moderation" class="tab-panel hidden">
+          <h1>Modération</h1>
+          <p class="muted">Filtres automatiques, logs du serveur, infractions et rôles immunisés.</p>
+          <div id="mod-subtabs" class="subtabs">
+            <button type="button" data-sub="filters" class="on">🛡️ Filtres automatiques</button>
+            <button type="button" data-sub="logs">📜 Logs</button>
+            <button type="button" data-sub="warnings">⚠️ Infractions</button>
+            <button type="button" data-sub="immune">👑 Rôles immunisés</button>
+          </div>
+
+          <!-- Automatic filters -->
+          <div class="subpanel" data-sub="filters">
+          <p class="muted small">Les filtres utilisent l’AutoMod de Discord : le message est bloqué avant même d’apparaître, et une alerte part dans le salon des logs.</p>
+          <div id="mod-perm" class="alert hidden">⚠️ Le bot a besoin de la permission <b>Gérer le serveur</b> pour créer les règles AutoMod.</div>
+          <div class="card">
+            <label>Salons ignorés par les filtres</label><div id="mod-ex-channels" class="chips"></div>
+          </div>
+
+          <div class="filter-grid">
+            <div class="card filter">
+              <div class="card-head"><h2>🤬 Mots interdits</h2><label class="switch"><input type="checkbox" id="mod-words-on"><span></span></label></div>
+              <label>Un mot ou une expression par ligne<textarea id="mod-words" rows="5" placeholder="mot1&#10;*mot2*  (avec * : bloque aussi les mots qui le contiennent)"></textarea></label>
+              <label>Exclusion temporaire (minutes, 0 = aucune)<input id="mod-words-timeout" type="number" min="0" max="40320"></label>
+            </div>
+            <div class="card filter">
+              <div class="card-head"><h2>🔞 Langage inapproprié</h2><label class="switch"><input type="checkbox" id="mod-presets-on"><span></span></label></div>
+              <p class="muted small">Les insultes et propos haineux des langues cochées sont bloqués avant même d’apparaître.</p>
+              <div id="mod-p-langs" class="lang-checks"></div>
+              <p class="muted small mt">Anglais (listes de Discord) :</p>
+              <label class="check"><input type="checkbox" id="mod-p-profanity"> Grossièretés (anglais)</label>
+              <label class="check"><input type="checkbox" id="mod-p-sexual"> Contenu sexuel (anglais)</label>
+              <label class="check"><input type="checkbox" id="mod-p-slurs"> Insultes et propos haineux (anglais)</label>
+            </div>
+            <div class="card filter">
+              <div class="card-head"><h2>✉️ Invitations Discord</h2><label class="switch"><input type="checkbox" id="mod-invites-on"><span></span></label></div>
+              <p class="muted small">Bloque les liens d’invitation vers d’autres serveurs (discord.gg/…).</p>
+            </div>
+            <div class="card filter">
+              <div class="card-head"><h2>🔗 Liens</h2><label class="switch"><input type="checkbox" id="mod-links-on"><span></span></label></div>
+              <label>Sites autorisés, un par ligne<textarea id="mod-links" rows="4" placeholder="youtube.com&#10;twitch.tv"></textarea></label>
+            </div>
+            <div class="card filter">
+              <div class="card-head"><h2>📣 Mentions en masse</h2><label class="switch"><input type="checkbox" id="mod-mentions-on"><span></span></label></div>
+              <div class="grid2">
+                <label>Mentions max par message<input id="mod-mentions-limit" type="number" min="1" max="50"></label>
+                <label>Exclusion (minutes)<input id="mod-mentions-timeout" type="number" min="0" max="40320"></label>
+              </div>
+            </div>
+            <div class="card filter">
+              <div class="card-head"><h2>🔁 Spam</h2><label class="switch"><input type="checkbox" id="mod-spam-on"><span></span></label></div>
+              <p class="muted small">Détection du spam par Discord (messages répétés, contenu suspect).</p>
+            </div>
+          </div>
+          </div>
+
+          <!-- Logs -->
+          <div class="subpanel hidden" data-sub="logs">
+            <div class="card">
+              <h2>Salon des logs</h2>
+              <p class="muted small">Configure les événements envoyés dans ce salon. Ne rate rien de ce qui se passe sur ton serveur quand tu n’es pas là !</p>
+              <label>Salon<select id="mod-logs"></select></label>
+              <div id="mod-intents" class="alert hidden"></div>
+              <div id="mod-log-events" class="log-groups"></div>
+            </div>
+          </div>
+
+          <!-- Infractions -->
+          <div class="subpanel hidden" data-sub="warnings">
+            <div class="card">
+              <div class="card-head"><h2>⚠️ Dernières infractions</h2><span class="muted small">/warn · /infractions · /clear-all-infractions</span></div>
+              <div id="mod-warnings" class="item-list"></div>
+            </div>
+          </div>
+
+          <!-- Immune roles -->
+          <div class="subpanel hidden" data-sub="immune">
+            <div class="card">
+              <h2>Rôles immunisés</h2>
+              <p class="muted small">Les membres ayant l’un de ces rôles ne sont affectés ni par les filtres automatiques ni par les commandes de modération.
+                Le propriétaire du serveur et les membres avec la permission Administrateur sont immunisés par défaut.</p>
+              <label>Rôles</label><div id="mod-ex-roles" class="chips"></div>
+            </div>
+          </div>
+
+          <!-- Stays visible at the bottom of the screen: nothing is applied on Discord before saving -->
+          <div id="mod-savebar" class="mod-savebar">
+            <span id="mod-dirty" class="hidden">⚠️ Modifications non enregistrées : elles ne sont pas encore appliquées sur Discord.</span>
+            <button id="mod-save" class="btn primary">Enregistrer la modération</button>
+          </div>
+        </div>
+
+        <!-- Polls -->
+        <div id="tab-polls" class="tab-panel hidden">
+          <h1>Sondages</h1>
+          <p class="muted">Des sondages natifs Discord : les membres votent directement dans le message et voient les résultats en direct.</p>
+          <div class="split">
+            <div class="col">
+              <div class="card">
+                <div class="grid2">
+                  <label>Salon<select id="p-channel"></select></label>
+                  <label>Mention<select id="p-mention"></select></label>
+                </div>
+                <label>Question<input id="p-question" maxlength="300" placeholder="Quel event pour samedi ?"></label>
+                <label>Réponses</label>
+                <div id="p-answers" class="options"></div>
+                <button id="p-add" class="btn ghost small">+ Ajouter une réponse</button>
+                <div class="grid2 mt">
+                  <label>Durée<select id="p-duration">
+                    <option value="1">1 heure</option><option value="4">4 heures</option><option value="8">8 heures</option>
+                    <option value="24" selected>24 heures</option><option value="72">3 jours</option><option value="168">1 semaine</option><option value="336">2 semaines</option>
+                  </select></label>
+                  <label class="check"><input type="checkbox" id="p-multi"> Plusieurs réponses possibles</label>
+                </div>
+              </div>
+              <button id="p-send" class="btn primary">Publier le sondage</button>
+              <p id="p-last" class="muted small"></p>
+            </div>
+            <div class="col preview-col"><div class="card sticky"><h2>Aperçu</h2><div id="p-preview" class="discord"></div></div></div>
+          </div>
+        </div>
+
+        <!-- Giveaways -->
+        <div id="tab-giveaways" class="tab-panel hidden">
+          <h1>Giveaways</h1>
+          <p class="muted">Les membres cliquent sur « Participer », le bot tire les gagnants au sort à la fin et les annonce.</p>
+          <div class="card">
+            <h2>Nouveau giveaway</h2>
+            <div class="grid2">
+              <label>Salon<select id="g-channel"></select></label>
+              <label>Lot à gagner<input id="g-prize" maxlength="200" placeholder="Nitro 1 mois"></label>
+            </div>
+            <label>Description (optionnel)<textarea id="g-description" data-ai="generic" rows="2" maxlength="1000"></textarea></label>
+            <div class="grid3">
+              <label>Gagnants<input id="g-winners" type="number" min="1" max="20" value="1"></label>
+              <label>Durée<span class="inline"><input id="g-duration" type="number" min="1" value="1"><select id="g-unit"><option value="60">minutes</option><option value="3600" >heures</option><option value="86400" selected>jours</option></select></span></label>
+              <label>Rôle requis (optionnel)<select id="g-role"></select></label>
+            </div>
+            <button id="g-create" class="btn primary">🎉 Lancer le giveaway</button>
+          </div>
+          <div class="card">
+            <h2>Giveaways</h2>
+            <div id="g-list" class="item-list"></div>
+          </div>
+        </div>
+
+        <!-- Social alerts -->
+        <div id="tab-alerts" class="tab-panel hidden">
+          <h1>Alertes réseaux</h1>
+          <p class="muted">Le bot vérifie les comptes toutes les 2 minutes et poste un message à chaque live, vidéo ou publication.</p>
+          <div class="card">
+            <h2>Nouvelle alerte</h2>
+            <div id="al-platforms" class="platforms"></div>
+            <div id="al-help" class="alert hidden"></div>
+            <label><span id="al-source-label">Compte</span><input id="al-source" maxlength="300"></label>
+            <div class="grid2">
+              <label>Salon<select id="al-channel"></select></label>
+              <label>Mention<select id="al-role"></select></label>
+            </div>
+            <label>Message<textarea id="al-message" rows="2" maxlength="1000"></textarea>
+              <small>Variables : {name} (compte) · {title} (titre) · {link} (lien) · {game} (jeu, Twitch)</small></label>
+            <button id="al-add" class="btn primary">+ Ajouter l’alerte</button>
+          </div>
+
+          <!-- Twitch credentials: shared by every server, so only the bot owner sees and sets them -->
+          <div id="twitch-card" class="card owner-only hidden">
+            <div class="card-head"><h2>🟣 Twitch <span class="muted small">— identifiants du bot</span></h2><span id="set-twitch-status" class="status-pill"></span></div>
+            <p class="muted small">Seul toi (propriétaire du bot) vois ce cadre : ces identifiants servent aux alertes Twitch de tous les serveurs, et le secret n’est jamais réaffiché.</p>
+            <details class="howto">
+              <summary>Comment obtenir ces identifiants (gratuit, 2 minutes)</summary>
+              <ol>
+                <li>Va sur <a href="https://dev.twitch.tv/console/apps" target="_blank" rel="noopener">dev.twitch.tv/console/apps</a> et connecte-toi avec ton compte Twitch.</li>
+                <li>Clique sur <b>Enregistrer votre application</b> : un nom au choix, URL de redirection <code>http://localhost</code>, catégorie <b>Chat Bot</b>.</li>
+                <li>Ouvre l’application, copie le <b>Client ID</b>, puis clique sur <b>Nouveau secret</b> et copie le <b>Client Secret</b>.</li>
+              </ol>
+            </details>
+            <div class="grid2">
+              <label>Client ID<input id="set-twitch-id" autocomplete="off" spellcheck="false"></label>
+              <label>Client Secret<input id="set-twitch-secret" type="password" autocomplete="new-password" spellcheck="false"></label>
+            </div>
+            <div class="actions">
+              <button class="btn primary small" data-save="twitch">Enregistrer</button>
+              <button class="btn ghost small" data-test="twitch">Tester</button>
+              <button class="btn danger small" data-clear="twitch">Effacer</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Alertes actives</h2>
+            <div id="al-list" class="item-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="w-final" class="final">
+    <div class="card-head"><h2>Rendu final généré par le bot</h2><button class="btn ghost small" id="w-final-close">Fermer</button></div>
+    <img id="w-final-img" alt="Rendu final">
+  </dialog>
+
+  <div id="savebar" class="savebar hidden">
+    <span>Tu as des modifications non enregistrées.</span>
+    <div>
+      <button id="reset" class="btn ghost">Annuler</button>
+      <button id="save" class="btn primary">Enregistrer</button>
+    </div>
+  </div>
+  <div id="toasts"></div>
+
+  <script src="/i18n.js"></script>
+  <script src="/i18n-en.js"></script>
+  <script src="/lang.js"></script>
+  <script src="/card-renderer.js"></script>
+  <script src="/common.js"></script>
+  <script src="/app.js"></script>
+  <script src="/app-ai.js"></script>
+  <script src="/app-tickets.js"></script>
+  <script src="/app-announce.js"></script>
+  <script src="/app-welcome.js"></script>
+  <script src="/modules.js"></script>
+  <script src="/features.js"></script>
+  <script src="/chart.js"></script>
+  <script src="/insights.js"></script>
+  <script src="/activity.js"></script>
+  <script src="/captcha.js"></script>
+  <script src="/emoji-picker.js"></script>
+  <script src="/ai-write.js"></script>
+  <script src="/colors.js"></script>
+  <script src="/select.js"></script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tickets staff</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/staff.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#" class="brand"><img id="brand-logo" class="brand-logo" alt=""> Tickets staff</a>
+    <div class="topbar-right">
+      <select id="lang-switch" title="Langue" translate="no" style="width:auto;margin:0;padding:6px 8px;font-size:13px"><option value="fr">🇫🇷 FR</option><option value="en">🇬🇧 EN</option></select>
+      <select id="guild" class="guild-select hidden" title="Serveur" translate="no"></select>
+      <div id="user" class="user hidden">
+        <img id="user-avatar" alt="">
+        <span id="user-name"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Login -->
+  <section id="view-login" class="view hidden">
+    <div class="login-card">
+      <div class="logo big">◆</div>
+      <h1>Tickets staff</h1>
+      <p class="muted">Connecte-toi avec Discord pour relire les tickets de ton serveur.</p>
+      <a class="btn discord" href="/login?next=/staff">Se connecter avec Discord</a>
+    </div>
+  </section>
+
+  <!-- Not staff -->
+  <section id="view-denied" class="view hidden">
+    <div class="login-card">
+      <div class="logo big">🔒</div>
+      <h1>Accès réservé au staff</h1>
+      <p class="muted">Tu n’as le rôle staff sur aucun serveur où le bot est présent.</p>
+    </div>
+  </section>
+
+  <!-- List + ticket -->
+  <section id="view-panel" class="view hidden staff-panel">
+    <aside class="list-col">
+      <div class="search">
+        <input id="q" type="search" placeholder="Pseudo, ID, type ou mot d’un premier message…" autocomplete="off">
+        <div id="status" class="segmented">
+          <button type="button" data-status="waiting" class="on">En attente <span class="count" id="n-waiting"></span></button>
+          <button type="button" data-status="open">Ouverts <span class="count" id="n-open"></span></button>
+          <button type="button" data-status="closed">Fermés</button>
+          <button type="button" data-status="">Tous</button>
+        </div>
+        <p id="count" class="muted small"></p>
+      </div>
+      <div id="list" class="ticket-list"></div>
+    </aside>
+
+    <main class="ticket-col">
+      <div id="empty" class="empty-state">
+        <div class="logo big">📂</div>
+        <p class="muted">Choisis un membre dans la liste pour lire sa conversation.</p>
+      </div>
+      <article id="ticket" class="hidden">
+        <header class="ticket-head">
+          <button id="back" class="btn ghost small back-btn">← Liste</button>
+          <img id="t-avatar" class="t-avatar" alt="">
+          <div class="t-info">
+            <h1 id="t-user"></h1>
+            <div id="t-meta" class="muted small"></div>
+          </div>
+          <div class="t-actions">
+            <button id="t-copy" class="btn ghost small">Copier le lien</button>
+            <button id="t-close" class="btn danger small hidden">🔒 Fermer le ticket</button>
+          </div>
+        </header>
+        <div id="t-messages" class="messages"></div>
+
+        <!-- The staff reply in the ticket channel on Discord: shortcut to it -->
+        <div id="reply-hint" class="composer reply-hint hidden">
+          <span class="muted small grow">💬 Réponds directement dans le salon du ticket sur Discord : ton message y apparaît avec ton rôle.</span>
+          <a id="t-goto" class="btn primary small" target="_blank" rel="noopener">Ouvrir le salon ↗</a>
+        </div>
+      </article>
+    </main>
+  </section>
+
+  <div id="toasts"></div>
+  <script src="/i18n.js"></script>
+  <script src="/i18n-en.js"></script>
+  <script src="/lang.js"></script>
+  <script src="/common.js"></script>
+  <script src="/staff.js"></script>
+</body>
+</html>

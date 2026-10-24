@@ -1,0 +1,26 @@
+{
+  "name": "1fa",
+  "description": "1FA — One For All: a free, all-in-one Discord bot with a web dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file=.env src/index.js",
+    "deploy": "node --env-file=.env src/deploy-commands.js",
+    "check:i18n": "node scripts/check-i18n.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "@napi-rs/canvas": "^1.0.11",
+    "discord.js": "^14.16.3",
+    "express": "^5.3.0",
+    "express-session": "^1.19.0"
+  },
+  "devDependencies": {
+    "acorn": "^8.14.0"
+  }
+}

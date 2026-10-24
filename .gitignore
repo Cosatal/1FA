@@ -1,0 +1,5 @@
+node_modules/
+.env
+.vscode/
+# Servers' data: API keys, servers' AI keys, ticket conversations
+data/

@@ -1,0 +1,108 @@
+/* Staff panel: ticket list on the left, conversation on the right (relies on style.css) */
+
+/* style.css shows every field as block: the hidden attribute must stay stronger */
+[hidden] { display: none !important; }
+
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.guild-select { width: auto; margin: 0; padding: 6px 10px; }
+
+.staff-panel { display: grid; grid-template-columns: 360px minmax(0, 1fr); height: calc(100vh - 64px); }
+
+/* ---------- List ---------- */
+.list-col { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--sidebar); min-height: 0; }
+.search { padding: 16px; border-bottom: 1px solid var(--border); }
+.search input { margin: 0 0 10px; }
+.search .segmented { margin: 0; }
+.search p { margin: 10px 0 0; }
+.ticket-list { overflow-y: auto; flex: 1; }
+.ticket-item {
+  display: flex; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border);
+  color: var(--text); cursor: pointer; transition: background 0.1s;
+}
+.ticket-item:hover { background: var(--panel-2); }
+.ticket-item.active { background: var(--panel-2); box-shadow: inset 3px 0 var(--accent); }
+.ticket-item img { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+.ticket-item .body { min-width: 0; flex: 1; }
+.ticket-item .row1 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.ticket-item .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket-item .date { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.ticket-item .preview { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket-item .tags { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.tag { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+.tag.open { color: #7ee2a0; border-color: rgba(59, 165, 92, 0.5); }
+.list-empty { padding: 32px 16px; text-align: center; color: var(--muted); }
+
+/* ---------- Ticket ---------- */
+.ticket-col { overflow-y: auto; background: var(--dc-bg); min-height: 0; }
+.empty-state { height: 100%; display: grid; place-content: center; text-align: center; padding: 24px; }
+.ticket-head {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 16px 24px; background: #2b2d31; border-bottom: 1px solid #1f2023;
+}
+.back-btn { display: none; }
+.t-avatar { width: 52px; height: 52px; border-radius: 50%; }
+.t-info { flex: 1; min-width: 200px; }
+.t-info h1 { font-size: 20px; margin: 0; overflow-wrap: anywhere; }
+.t-info .id { font-family: Consolas, monospace; cursor: pointer; }
+.t-info .id:hover { color: var(--text); }
+.t-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.messages { padding: 16px 0 40px; color: var(--dc-text); }
+.day { display: flex; align-items: center; gap: 10px; margin: 18px 24px 8px; color: #949ba4; font-size: 12px; font-weight: 600; }
+.day::before, .day::after { content: ''; flex: 1; border-top: 1px solid #3f4147; }
+/* Messages: prefixed classes so they don't inherit dashboard styles (.content, .staff…) */
+.msg { display: flex; gap: 16px; padding: 6px 24px; }
+.msg:hover { background: #2e3035; }
+.msg .av { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 18px; background: #4e5058; }
+.msg .msg-body { min-width: 0; flex: 1; }
+.msg .msg-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.msg .author { font-weight: 600; color: #f2f3f5; }
+.msg.from-staff .author { color: var(--accent-2); }
+.msg .badge { font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 4px; line-height: 16px; height: 16px; color: #fff; }
+.badge.staff { background: var(--accent); }
+.badge.ai { background: #5865f2; }
+.msg .time { color: #949ba4; font-size: 12px; }
+.msg .text { line-height: 1.45; overflow-wrap: anywhere; }
+.msg .text code { background: #2b2d31; }
+.files { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; align-items: flex-start; }
+.files img { max-width: min(400px, 100%); max-height: 320px; border-radius: var(--r-sm); display: block; cursor: zoom-in; }
+.files .file { background: #2b2d31; border: 1px solid #1f2023; padding: 8px 12px; border-radius: var(--r-sm); }
+.files .file.expired { color: var(--muted); }
+.system { text-align: center; color: #949ba4; font-size: 13px; margin: 16px 24px; }
+/* Start of each ticket in the member's conversation */
+.ticket-sep {
+  margin: 28px 24px 8px; padding: 8px 14px; border-radius: var(--r-sm); font-size: 13px; font-weight: 600;
+  background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); color: var(--accent-2);
+  scroll-margin-top: 100px;
+}
+.ticket-sep.focus { box-shadow: 0 0 0 2px var(--accent); }
+.ticket-sep:first-child { margin-top: 8px; }
+
+/* ---------- Reply ---------- */
+#ticket { min-height: 100%; display: flex; flex-direction: column; }
+.messages { flex: 1; }
+.composer { position: sticky; bottom: 0; padding: 12px 24px 16px; background: var(--dc-bg); border-top: 1px solid #3f4147; }
+.reply-hint { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.reply-hint.hidden { display: none; }
+.reply-hint .grow { flex: 1; min-width: 200px; }
+.composer textarea { margin: 0; background: #383a40; border-color: transparent; color: var(--dc-text); }
+.composer textarea:focus { border-color: var(--accent); }
+.c-bar { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+.c-bar .check { margin: 0; }
+.c-bar .grow { flex: 1; min-width: 120px; }
+.c-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; background: #2b2d31; border-radius: var(--r-sm); padding: 4px 4px 4px 12px; font-size: 13px; }
+.segmented .count { font-size: 11px; opacity: 0.8; }
+.segmented .count:empty { display: none; }
+.tag.waiting { color: #ffd479; border-color: rgba(250, 166, 26, 0.5); }
+
+@media (max-width: 800px) {
+  .staff-panel { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 64px); }
+  .staff-panel.reading .list-col { display: none; }
+  .staff-panel:not(.reading) .ticket-col { display: none; }
+  .ticket-col { overflow: visible; }
+  .back-btn { display: inline-flex; }
+  .topbar { padding: 12px 16px; }
+  #user-name { display: none; }
+  .msg { padding: 6px 16px; }
+  .ticket-head { padding: 12px 16px; }
+}
