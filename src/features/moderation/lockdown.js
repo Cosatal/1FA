@@ -60,7 +60,9 @@ async function lockChannel(channel, { until = null, by, reason, source = 'comman
   return 'locked';
 }
 
-// Restores the saved permissions. Returns false if the channel wasn't locked
+// Restores the saved permissions. Returns false if the channel wasn't locked.
+// The entry is removed first (a second unlock at the same time does nothing); the permissions that couldn't be
+// restored (Discord error, missing permission) are saved again, so the channel is still known as locked and can be retried
 async function unlockChannel(guild, channelId) {
   const data = store.get(guild.id);
   const entry = data.channels[channelId];
@@ -69,15 +71,24 @@ async function unlockChannel(guild, channelId) {
   store.save(guild.id, data);
   const channel = guild.channels.cache.get(channelId);
   if (!channel) return true; // deleted in the meantime
+  const failed = {};
   for (const [id, saved] of Object.entries(entry.saved)) {
+    if (!guild.roles.cache.has(id)) continue; // role deleted in the meantime: nothing to restore
     try {
       await channel.permissionOverwrites.edit(id, saved, { reason: t('lockdown.unlock_reason'), type: OverwriteType.Role });
       // An overwrite that didn't exist before (all null now) is removed: the channel can be synced with its category again
       const now = channel.permissionOverwrites.cache.get(id);
       if (now && now.allow.bitfield === 0n && now.deny.bitfield === 0n) await channel.permissionOverwrites.delete(id, t('lockdown.unlock_reason'));
     } catch (error) {
+      failed[id] = saved;
       console.error(`Unlock #${channel.name}:`, error.message);
     }
+  }
+  if (Object.keys(failed).length) {
+    const latest = store.get(guild.id);
+    // Timed lock: next try in 5 minutes (not every 30 seconds while the bot lacks a permission)
+    latest.channels[channelId] = { ...entry, saved: failed, until: entry.until && Date.now() + 300000 };
+    store.save(guild.id, latest);
   }
   return true;
 }
@@ -121,6 +132,7 @@ function startLockdowns(client) {
       if (!due.length) continue;
       for (const [channelId, entry] of due) {
         await unlockChannel(guild, channelId);
+        if (isLocked(guild.id, channelId)) continue; // not fully restored: tried again later
         // Server lockdowns end silently in each channel (a message in every channel would be spam)
         if (entry.scope === 'channel') await guild.channels.cache.get(channelId)?.send({ embeds: [lockEmbed(false, {})] }).catch(() => {});
       }
