@@ -1,4 +1,6 @@
 // Risky pure logic: private addresses (SSRF), secret encryption, durations, XP levels, ticket index
+// Temporary data folder: the tests never touch the bot's real data/
+process.env.DATA_DIR = require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), '1fa-test-'));
 process.env.ENCRYPTION_KEY = 'a'.repeat(64); // before secrets.js is loaded
 const assert = require('node:assert');
 const fs = require('node:fs');

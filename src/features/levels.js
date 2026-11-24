@@ -1,7 +1,7 @@
 const path = require('node:path');
 const { createCanvas } = require('@napi-rs/canvas');
 const { readJson, writeJson, DATA_DIR } = require('../core/store');
-const { getFeature, peekFeature, fillVars } = require('../core/feature-config');
+const { getFeature, peekFeature, fillVars, giveableRole } = require('../core/feature-config');
 const { fetchImage } = require('./welcome/welcome-card');
 const { keep } = require('../dashboard/public/i18n');
 const { every } = require('../core/scheduler');
@@ -55,7 +55,7 @@ async function syncRewards(member, level, config) {
   const reached = config.rewards.filter((r) => r.level <= level).sort((a, b) => a.level - b.level);
   const keep = new Set((config.stackRewards ? reached : reached.slice(-1)).map((r) => r.roleId));
   const editable = (id) => member.guild.roles.cache.get(id)?.editable;
-  const add = [...keep].filter((id) => !member.roles.cache.has(id) && editable(id));
+  const add = [...keep].filter((id) => !member.roles.cache.has(id) && giveableRole(member.guild.roles.cache.get(id)));
   const remove = config.rewards.map((r) => r.roleId).filter((id) => !keep.has(id) && member.roles.cache.has(id) && editable(id));
   if (add.length) await member.roles.add(add, `Niveau ${level}`).catch(() => {});
   if (remove.length) await member.roles.remove(remove, `Niveau ${level}`).catch(() => {});

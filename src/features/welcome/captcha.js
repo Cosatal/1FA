@@ -15,6 +15,7 @@ const welcomeStore = require('./welcome-store');
 const { giveRoles } = require('./welcome-card');
 const { PANEL_COLOR } = require('../../core/credits');
 const { logActivity } = require('../../core/activity');
+const { giveableRole } = require('../../core/feature-config');
 const { t } = require('../../core/i18n');
 
 // Verification captcha: a message with a button in the chosen channel. The member reads a code drawn in an image,
@@ -166,7 +167,7 @@ async function handleCaptcha(interaction) {
     pending.delete(key);
     fails.delete(key);
     const role = guild.roles.cache.get(config.roleId);
-    const given = role?.editable && (await member.roles.add(role, t('captcha.captcha_passed')).then(() => true, () => false));
+    const given = giveableRole(role) && (await member.roles.add(role, t('captcha.captcha_passed')).then(() => true, () => false));
     if (!given) return ephemeral(t('captcha.can_give_access_role_let'));
     const { autoroles } = welcomeStore.peek(guild.id);
     if (autoroles.enabled) await giveRoles(member, autoroles.roles, t('captcha.auto_roles'));

@@ -1,4 +1,6 @@
 // Unlocking keeps what it couldn't restore · backup download with a non-Latin server name
+// Temporary data folder: the tests never touch the bot's real data/
+process.env.DATA_DIR = require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), '1fa-test-'));
 const assert = require('node:assert');
 const { test, after } = require('node:test');
 const express = require('express');

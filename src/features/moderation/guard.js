@@ -1,7 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, GuildVerificationLevel, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { createStore } = require('../../core/store');
 const { logActivity } = require('../../core/activity');
-const { getFeature, fillVars } = require('../../core/feature-config');
+const { getFeature, fillVars, giveableRole } = require('../../core/feature-config');
 const { PANEL_COLOR } = require('../../core/credits');
 const { keep } = require('../../dashboard/public/i18n');
 const { translatorFor } = require('../../core/language');
@@ -52,7 +52,7 @@ async function quarantineMember(member, config) {
   const until = member.user.createdTimestamp + config.minAge * 86400000;
   const role = config.minAgeAction === 'quarantine' ? guild.roles.cache.get(config.quarantineRole) : null;
   let mode;
-  if (role?.editable && (await member.roles.add(role, t('guard.quarantine_reason', { minAge: config.minAge })).then(() => true).catch(() => false))) mode = 'role';
+  if (giveableRole(role) && (await member.roles.add(role, t('guard.quarantine_reason', { minAge: config.minAge })).then(() => true).catch(() => false))) mode = 'role';
   else if (member.moderatable && (await member.timeout(Math.min(until - Date.now(), MAX_TIMEOUT), t('guard.quarantine_reason', { minAge: config.minAge })).then(() => true).catch(() => false))) mode = 'timeout';
   else return false;
 

@@ -1,5 +1,5 @@
 const { EmbedBuilder, MessageFlags } = require('discord.js');
-const { getFeature, fillVars } = require('../core/feature-config');
+const { getFeature, fillVars, giveableRole } = require('../core/feature-config');
 const { keep } = require('../dashboard/public/i18n');
 const { defaultsFor } = require('../core/language');
 const { t } = require('../core/i18n');
@@ -41,8 +41,9 @@ async function handleCustomCommand(interaction) {
 
   // Role given, or removed if the person already has it
   const role = command.roleId && guild.roles.cache.get(command.roleId);
-  if (role?.editable) {
-    const has = member.roles.cache.has(role.id);
+  const has = Boolean(role && member.roles.cache.has(role.id));
+  // Removing is always allowed; giving never hands out a staff role (feature-config.js)
+  if (role?.editable && (has || giveableRole(role))) {
     const ok = await (has ? member.roles.remove(role) : member.roles.add(role)).then(() => true).catch(() => false);
     if (ok) text += `\n${has ? '➖' : '➕'} ${role}`;
   }

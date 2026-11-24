@@ -666,6 +666,7 @@
   "reactionRoles": {
     "added": "✅ Added: {join}",
     "can_give_role_it_above": "I can’t give the role {name}: it’s above mine, or I’m missing “Manage Roles”.",
+    "staff_role_refused": "I don’t give the role {name}: it has staff permissions.",
     "channel_not_found": "Channel not found.",
     "could_not_send_make_sure": "Could not send: {message}. Make sure the bot can write in this channel.",
     "no_changes": "No changes.",

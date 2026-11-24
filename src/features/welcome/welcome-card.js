@@ -11,6 +11,7 @@ const { registerAll } = require('../../core/fonts');
 const { W, H, drawCard, fillVars } = require('../../dashboard/public/card-renderer');
 const { keep } = require('../../dashboard/public/i18n');
 const { defaultsFor } = require('../../core/language');
+const { giveableRole } = require('../../core/feature-config');
 const { t } = require('../../core/i18n');
 
 registerAll();
@@ -106,9 +107,9 @@ async function handleMemberLeave(member) {
   await channel?.send({ content: keep(fillVars(goodbye.message, vars), 2000), allowedMentions: { parse: [] } }).catch((error) => console.error('Unable to send the goodbye message:', error.message));
 }
 
-// Gives the roles the bot is allowed to give (the others are ignored)
+// Gives the roles the bot is allowed to give (the others are ignored, staff roles included: feature-config.js)
 async function giveRoles(member, roleIds, reason) {
-  const roles = roleIds.filter((id) => member.guild.roles.cache.get(id)?.editable);
+  const roles = roleIds.filter((id) => giveableRole(member.guild.roles.cache.get(id)));
   if (roles.length) await member.roles.add(roles, reason).catch((error) => console.error(`${reason} :`, error.message));
 }
 

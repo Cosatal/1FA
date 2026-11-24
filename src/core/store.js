@@ -4,7 +4,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const DATA_DIR = path.join(__dirname, '..', '..', 'data');
+// DATA_DIR in .env: another folder (e.g. on a separate disk); the tests use a temporary one
+const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, '..', '..', 'data');
 
 // Writes to a temporary file then renames it: a crash while writing can't corrupt the data
 function writeJson(file, value, pretty = true) {
