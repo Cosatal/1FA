@@ -1,7 +1,7 @@
 {
   "name": "1fa",
   "description": "1FA — One For All: a free, all-in-one Discord bot with a web dashboard",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
   "main": "src/index.js",

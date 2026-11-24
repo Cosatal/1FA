@@ -61,6 +61,10 @@ On a VPS: install Node.js, copy the folder (without `node_modules`), run `npm in
 [pm2](https://pm2.keymetrics.io/) (`pm2 start src/index.js --node-args="--env-file=.env"`). Put the dashboard's public address in
 `DASHBOARD_URL` (using https) and add `<DASHBOARD_URL>/callback` to the OAuth2 redirects.
 
+## Updating
+
+`git pull`, `npm install`, then restart the bot. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+
 ## Data
 
 Everything is stored in the `data/` folder (created on first launch): server settings, AI keys, tickets, XP…
