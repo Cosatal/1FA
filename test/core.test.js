@@ -74,5 +74,12 @@ test('openCounts matches the conversation list', async () => {
   fs.rmSync(path.join(DATA_DIR, 'transcripts', guildId), { recursive: true, force: true });
 });
 
+test('translation: bot texts translated, member texts marked keep() left as written', () => {
+  const { createTranslator, translatePayload, keep } = require('../src/dashboard/public/i18n');
+  const tr = createTranslator(require('../src/dashboard/public/i18n-en'));
+  const body = translatePayload({ embeds: [{ description: keep('Non', 4000), fields: [{ name: 'Avant', value: keep('Oui', 1024) }] }] }, tr);
+  assert.deepEqual(body.embeds[0], { description: 'Non', fields: [{ name: 'Before', value: 'Oui' }] });
+});
+
 // The stores start save timers: stop the process once the tests are done
 after(() => setImmediate(() => process.exit(0)));
