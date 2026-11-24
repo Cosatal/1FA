@@ -58,11 +58,10 @@ function staffRoutes(app, client, auth) {
   app.get('/api/staff/:guildId/conversations', auth, staffAccess, (req, res) => {
     const status = ['open', 'closed', 'waiting'].includes(req.query.status) ? req.query.status : '';
     const list = transcripts.listConversations(req.guild.id, { query: str(req.query.q), status });
-    const open = transcripts.listConversations(req.guild.id, { status: 'open' });
     res.json({
       total: list.length,
       conversations: list.slice(0, 200),
-      counts: { open: open.length, waiting: open.filter((c) => c.open.lastFrom !== 'staff').length },
+      counts: transcripts.openCounts(req.guild.id),
     });
   });
 

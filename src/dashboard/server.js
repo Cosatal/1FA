@@ -256,11 +256,11 @@ function startDashboard(client) {
   app.get('/api/guilds/:id', auth, guildAccess, (req, res) => {
     const g = req.guild;
     const byPosition = (a, b) => a.rawPosition - b.rawPosition;
-    const open = transcripts.listConversations(g.id, { status: 'open' });
+    const open = transcripts.openCounts(g.id);
     res.json({
       guild: { id: g.id, name: g.name, icon: g.iconURL({ size: 128 }), members: g.memberCount },
       // Dashboard home numbers
-      stats: { openTickets: open.length, waitingTickets: open.filter((c) => c.open.lastFrom !== 'staff').length, ...moduleStats(g.id) },
+      stats: { openTickets: open.open, waitingTickets: open.waiting, ...moduleStats(g.id) },
       features: featureStats(g.id),
       language: guildLang(g),
       tickets: getTicketConfig(g.id),

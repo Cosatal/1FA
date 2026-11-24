@@ -181,6 +181,14 @@ function listConversations(guildId, { query = '', status = '' } = {}) {
     .map(({ search, ...c }) => c);
 }
 
+// Members with an open ticket, and those of them waiting for a staff reply (same rule as listConversations:
+// the member's last open ticket counts). One pass over the index, for the counters polled by the panel
+function openCounts(guildId) {
+  const lastFrom = new Map(); // userId → lastFrom of their open ticket
+  for (const t of index(guildId)) if (!t.closedAt) lastFrom.set(t.user.id, t.lastFrom);
+  return { open: lastFrom.size, waiting: [...lastFrom.values()].filter((from) => from !== 'staff').length };
+}
+
 // All of a member's tickets, from oldest to newest
 const userTickets = (guildId, userId) =>
   index(guildId)
@@ -195,4 +203,4 @@ function filePath(guildId, ticketId, name) {
   return fs.existsSync(file) ? file : null;
 }
 
-module.exports = { createTicket, addRecap, addMessage, updateTicket, getTicket: get, listTickets, listConversations, userTickets, filePath };
+module.exports = { createTicket, addRecap, addMessage, updateTicket, getTicket: get, listTickets, listConversations, openCounts, userTickets, filePath };
