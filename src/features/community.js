@@ -2,7 +2,7 @@ const {
   ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, ModalBuilder, PermissionFlagsBits, TextInputBuilder, TextInputStyle,
 } = require('discord.js');
 const { createStore } = require('../core/store');
-const { getFeature, peekFeature, fillVars } = require('../core/feature-config');
+const { getFeature, peekFeature, fillVars, giveableRole } = require('../core/feature-config');
 const { keep } = require('../dashboard/public/i18n');
 const { every } = require('../core/scheduler');
 const { t } = require('../core/i18n');
@@ -268,7 +268,7 @@ function startBirthdays(client) {
         const member = await guild.members.fetch(userId).catch(() => null);
         if (!member) continue;
         holders.push(userId);
-        if (role?.editable) await member.roles.add(role).catch(() => {});
+        if (giveableRole(role)) await member.roles.add(role).catch(() => {});
         const content = keep(fillVars(config.message, { user: `${member}`, name: member.displayName, server: guild.name }), 2000); // dashboard text, as is
         await guild.channels.cache.get(config.channelId)?.send({ content, allowedMentions: { users: [userId] } }).catch(() => {});
       }

@@ -1,4 +1,6 @@
 // Who may be given a role from the dashboard, and who may sanction whom (security rules)
+// Temporary data folder: the tests never touch the bot's real data/
+process.env.DATA_DIR = require('node:fs').mkdtempSync(require('node:path').join(require('node:os').tmpdir(), '1fa-test-'));
 const assert = require('node:assert');
 const { PermissionsBitField, PermissionFlagsBits: P } = require('discord.js');
 const { giveableRole } = require('../src/core/feature-config');
@@ -24,5 +26,14 @@ test('targetError follows the role hierarchy', () => {
   assert.equal(targetError(inter('senior', 5), member('junior', 2), ok), null); // above: allowed
   assert.equal(targetError(inter('owner', 1), member('x', 5), ok), null); // owner: allowed
 });
+test('giveRoles skips staff roles saved before the dashboard check', async () => {
+  const { giveRoles } = require('../src/features/welcome/welcome-card');
+  const roles = new Map([['ok', role([P.SendMessages], { id: 'ok' })], ['admin', role([P.Administrator], { id: 'admin' })]]);
+  const given = [];
+  const member = { guild: { roles: { cache: roles } }, roles: { add: async (ids) => given.push(...ids) } };
+  await giveRoles(member, ['ok', 'admin'], 'test');
+  assert.deepEqual(given, ['ok']);
+});
+
 // The stores start save timers: stop the process once the tests are done
 after(() => setImmediate(() => process.exit(0)));

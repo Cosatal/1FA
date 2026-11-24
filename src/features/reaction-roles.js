@@ -2,6 +2,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags
 const { createStore } = require('../core/store');
 const { keep } = require('../dashboard/public/i18n');
 const { PANEL_COLOR } = require('../core/credits');
+const { giveableRole } = require('../core/feature-config');
 const { t } = require('../core/i18n');
 
 // Reaction roles: messages ("panels") where members give themselves roles.
@@ -89,6 +90,8 @@ async function setRole(member, panel, roleId, give) {
   const role = member.guild.roles.cache.get(roleId);
   if (!role) throw new Error(t('reactionRoles.this_role_no_longer_exists'));
   if (!role.editable) throw new Error(t('reactionRoles.can_give_role_it_above', { name: role.name }));
+  // A panel saved before this check existed can hold a staff role: never handed out (feature-config.js)
+  if (give && !giveableRole(role)) throw new Error(t('reactionRoles.staff_role_refused', { name: role.name }));
   if (give) {
     if (panel.unique) {
       const others = panel.roles.map((r) => r.roleId).filter((id) => id !== roleId && member.roles.cache.has(id));

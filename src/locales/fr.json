@@ -666,6 +666,7 @@
   "reactionRoles": {
     "added": "✅ Ajouté : {join}",
     "can_give_role_it_above": "Je ne peux pas donner le rôle {name} : il est au-dessus du mien, ou il me manque « Gérer les rôles ».",
+    "staff_role_refused": "Je ne donne pas le rôle {name} : il a des permissions de staff.",
     "channel_not_found": "Salon introuvable.",
     "could_not_send_make_sure": "Envoi impossible : {message}. Vérifie que le bot peut écrire dans ce salon.",
     "no_changes": "Aucun changement.",

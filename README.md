@@ -65,6 +65,7 @@ On a VPS: install Node.js, copy the folder (without `node_modules`), run `npm in
 
 Everything is stored in the `data/` folder (created on first launch): server settings, AI keys, tickets, XP…
 Don't share it, and back it up regularly. Never publish the `.env` file.
+To keep it somewhere else (another disk, a backed-up folder), set `DATA_DIR` in `.env`.
 
 Set `ENCRYPTION_KEY` in `.env` (see `.env.example`): the AI keys, the Twitch secret and the RCON passwords are then
 saved encrypted, so the `data/` folder alone doesn't reveal them. Back this key up with your `.env`: without it,
