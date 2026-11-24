@@ -1,5 +1,6 @@
 const { EmbedBuilder, SnowflakeUtil } = require('discord.js');
 const { createStore } = require('../core/store');
+const { publicRequest } = require('../core/public-fetch');
 const { getSetting } = require('../core/settings');
 const { keep } = require('../dashboard/public/i18n');
 const { defaultsFor } = require('../core/language');
@@ -64,10 +65,11 @@ function parseFeed(xml) {
   return { title: tag(head, 'title'), items };
 }
 
+// The feed address is chosen by a server: never towards the VPS's private network (public-fetch.js)
 async function fetchText(url) {
-  const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(15000) });
+  const res = await publicRequest(url, { headers: UA, timeout: 15000, http: true, redirects: 3 });
   if (!res.ok) throw new Error(t('alerts.website_responded', { status: res.status }));
-  return res.text();
+  return res.text;
 }
 
 // ---------- Twitch ----------

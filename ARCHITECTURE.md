@@ -195,7 +195,7 @@ Most simple features don't need any dashboard code: they are described by a **sc
 
 1. Add an entry in the `FEATURES` table of `src/core/feature-config.js`: the list of fields (`bool`, `int`, `text`, `channel`, `role`…) with their default values.
 2. Add its name to the `NAMES` list in `src/dashboard/public/features.js`, and a link in the sidebar of `src/dashboard/public/index.html`.
-3. Write the bot logic in a new file in `src/features/`, read the settings with `getFeature(guildId, 'yourFeature')`, and connect it to the right event in `src/index.js`.
+3. Write the bot logic in a new file in `src/features/`, read the settings with `getFeature(guildId, 'yourFeature')` (or `peekFeature`, without copy, for reads on every message: never modify its result), and connect it to the right event in `src/index.js`.
 
 ### Translating a text
 

@@ -279,6 +279,8 @@ const store = createStore('features', {});
 // only the requested module is copied (not the whole server config)
 const DEFAULTS = Object.fromEntries(Object.entries(FEATURES).map(([name, f]) => [name, { ...(f.toggle && { enabled: false }), ...defaultsOf(f.fields) }]));
 const getFeature = (guildId, name) => structuredClone({ ...DEFAULTS[name], ...store.peek(guildId)[name] });
+// Read-only, no copy: for reads on every message or reaction. Never modify the result
+const peekFeature = (guildId, name) => ({ ...DEFAULTS[name], ...store.peek(guildId)[name] });
 function saveFeature(guildId, name, config) {
   store.save(guildId, { ...store.peek(guildId), [name]: config });
 }
@@ -423,4 +425,4 @@ if (encryptionEnabled) {
 // Replaces {variables} in a text
 const fillVars = (text, vars) => text.replace(/\{(\w+)\}/g, (all, key) => (key in vars ? String(vars[key]) : all));
 
-module.exports = { FEATURES, getFeature, saveFeature, parseFeature, schemaOf, publicConfig, fillVars };
+module.exports = { FEATURES, getFeature, peekFeature, saveFeature, parseFeature, schemaOf, publicConfig, fillVars };

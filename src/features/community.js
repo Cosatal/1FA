@@ -2,7 +2,7 @@ const {
   ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, ModalBuilder, PermissionFlagsBits, TextInputBuilder, TextInputStyle,
 } = require('discord.js');
 const { createStore } = require('../core/store');
-const { getFeature, fillVars } = require('../core/feature-config');
+const { getFeature, peekFeature, fillVars } = require('../core/feature-config');
 const { keep } = require('../dashboard/public/i18n');
 const { every } = require('../core/scheduler');
 const { t } = require('../core/i18n');
@@ -148,7 +148,7 @@ function handleStarReaction(reaction) {
 async function updateStar(reaction) {
   const guild = reaction.message.guild;
   if (!guild) return;
-  const config = getFeature(guild.id, 'starboard');
+  const config = peekFeature(guild.id, 'starboard');
   if (!config.enabled || !config.channelId) return;
   if ((reaction.emoji.id ?? reaction.emoji.name?.replace(/️/g, '')) !== emojiKey(config.emoji)) return;
   if (reaction.partial) await reaction.fetch().catch(() => null);

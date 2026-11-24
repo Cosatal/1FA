@@ -58,12 +58,12 @@ function registerLogs(client) {
   const INVITE = /(discord\.gg|discord(app)?\.com\/invite)\/[\w-]+/i;
   on(Events.MessageCreate, async (m) => {
     if (m.guild && !m.author.bot && INVITE.test(m.content)) {
-      await sendLog(m.guild, 'invitePosted', embed('edit', t('logs.invite_posted_2'), { user: m.author, description: m.content, fields: [{ name: t('logs.channel'), value: `${m.channel} · [voir](${m.url})` }] }));
+      await sendLog(m.guild, 'invitePosted', () => embed('edit', t('logs.invite_posted_2'), { user: m.author, description: m.content, fields: [{ name: t('logs.channel'), value: `${m.channel} · [voir](${m.url})` }] }));
     }
   });
   on(Events.MessageUpdate, async (before, after) => {
     if (!after.guild || after.author?.bot || before.content === after.content || after.partial) return;
-    await sendLog(after.guild, 'messageEdit', embed('edit', t('logs.message_edited_2'), {
+    await sendLog(after.guild, 'messageEdit', () => embed('edit', t('logs.message_edited_2'), {
       user: after.author,
       fields: [
         { name: t('logs.channel'), value: t('logs.view_message', { channel: after.channel, url: after.url }) },
@@ -75,7 +75,7 @@ function registerLogs(client) {
   on(Events.MessageDelete, async (m) => {
     if (!m.guild || m.author?.bot) return;
     const files = [...(m.attachments?.values() ?? [])].map((a) => a.name).join(', ');
-    await sendLog(m.guild, 'messageDelete', embed('remove', t('logs.message_deleted_2'), {
+    await sendLog(m.guild, 'messageDelete', () => embed('remove', t('logs.message_deleted_2'), {
       user: m.author,
       description: m.partial ? t('logs.message_too_old_content_unknown') : m.content || '*(sans texte)*',
       fields: [{ name: t('logs.channel'), value: `${m.channel}` }, ...(files ? [{ name: t('logs.files'), value: files }] : [])],

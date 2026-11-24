@@ -1,7 +1,7 @@
 const path = require('node:path');
 const { createCanvas } = require('@napi-rs/canvas');
 const { readJson, writeJson, DATA_DIR } = require('../core/store');
-const { getFeature, fillVars } = require('../core/feature-config');
+const { getFeature, peekFeature, fillVars } = require('../core/feature-config');
 const { fetchImage } = require('./welcome/welcome-card');
 const { keep } = require('../dashboard/public/i18n');
 const { every } = require('../core/scheduler');
@@ -103,7 +103,7 @@ const excluded = (member, channel, config) =>
 const lastGain = new Map(); // guildId:userId → date
 async function handleLevelMessage(message) {
   if (!message.guild || message.author.bot || !message.member) return;
-  const config = getFeature(message.guild.id, 'levels');
+  const config = peekFeature(message.guild.id, 'levels');
   if (!config.enabled || excluded(message.member, message.channel, config)) return;
   const key = `${message.guild.id}:${message.author.id}`;
   if (Date.now() - (lastGain.get(key) ?? 0) < config.cooldown * 1000) return;
@@ -118,7 +118,7 @@ function startVoiceXp(client) {
     for (const guild of client.guilds.cache.values()) {
       // Nobody in voice: nothing to do (avoids reading every server's config every minute)
       if (!guild.voiceStates.cache.size) continue;
-      const config = getFeature(guild.id, 'levels');
+      const config = peekFeature(guild.id, 'levels');
       if (!config.enabled || !config.voiceXp) continue;
       for (const channel of guild.channels.cache.filter((c) => c.isVoiceBased()).values()) {
         const humans = channel.members.filter((m) => !m.user.bot);
