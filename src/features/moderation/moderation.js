@@ -190,6 +190,10 @@ function targetError(interaction, member, canAct) {
   if (member.id === interaction.user.id) return t('moderation.can_sanction_yourself');
   const immune = immunity(member);
   if (immune) return t('moderation.not_possible', { immune });
+  // Same rule as Discord: only someone placed above the member can sanction them (the owner excepted)
+  if (interaction.user.id !== interaction.guild.ownerId && interaction.member.roles.highest.comparePositionTo(member.roles.highest) <= 0) {
+    return t('moderation.member_above_you');
+  }
   if (!canAct(member)) return t('moderation.can_sanction_this_member_their');
   return null;
 }

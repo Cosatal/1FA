@@ -1,4 +1,4 @@
-const { ChannelType, SnowflakeUtil } = require('discord.js');
+const { ChannelType, PermissionFlagsBits, SnowflakeUtil } = require('discord.js');
 const { createStore } = require('./store');
 const { encryptSecret, encryptionEnabled, isEncrypted } = require('./secrets');
 
@@ -278,6 +278,15 @@ const store = createStore('features', {});
 // Default values computed once per module. getFeature is called on every message, reaction or voice update:
 // only the requested module is copied (not the whole server config)
 const DEFAULTS = Object.fromEntries(Object.entries(FEATURES).map(([name, f]) => [name, { ...(f.toggle && { enabled: false }), ...defaultsOf(f.fields) }]));
+// Roles the dashboard lets the bot hand out (reaction roles, auto roles, rewards…). "Gérer le serveur" is enough to use
+// the dashboard but doesn't allow giving roles on Discord: a role with staff permissions would let that person promote themselves
+const STAFF_PERMISSIONS = [
+  PermissionFlagsBits.Administrator, PermissionFlagsBits.ManageGuild, PermissionFlagsBits.ManageRoles, PermissionFlagsBits.ManageChannels,
+  PermissionFlagsBits.ManageWebhooks, PermissionFlagsBits.BanMembers, PermissionFlagsBits.KickMembers, PermissionFlagsBits.ModerateMembers,
+  PermissionFlagsBits.ManageMessages, PermissionFlagsBits.MentionEveryone,
+];
+const giveableRole = (role) => Boolean(role && role.id !== role.guild.id && role.editable && !role.managed && !role.permissions.any(STAFF_PERMISSIONS));
+
 const getFeature = (guildId, name) => structuredClone({ ...DEFAULTS[name], ...store.peek(guildId)[name] });
 // Read-only, no copy: for reads on every message or reaction. Never modify the result
 const peekFeature = (guildId, name) => ({ ...DEFAULTS[name], ...store.peek(guildId)[name] });
@@ -329,6 +338,7 @@ function parseField(f, value, guild, label, prev) {
       const role = guild.roles.cache.get(id);
       need(role && role.id !== guild.id, 'rôle introuvable.');
       if (f.assignable) need(role.editable && !role.managed, `le bot ne peut pas donner @${role.name} (place son rôle au-dessus).`);
+      if (f.assignable) need(giveableRole(role), `@${role.name} a des permissions de staff : le bot ne le donne pas.`);
       return id;
     }
     case 'roles':
@@ -425,4 +435,4 @@ if (encryptionEnabled) {
 // Replaces {variables} in a text
 const fillVars = (text, vars) => text.replace(/\{(\w+)\}/g, (all, key) => (key in vars ? String(vars[key]) : all));
 
-module.exports = { FEATURES, getFeature, peekFeature, saveFeature, parseFeature, schemaOf, publicConfig, fillVars };
+module.exports = { FEATURES, giveableRole, getFeature, peekFeature, saveFeature, parseFeature, schemaOf, publicConfig, fillVars };
