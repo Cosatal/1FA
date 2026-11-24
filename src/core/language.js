@@ -104,7 +104,7 @@ function installTranslator(client) {
       options = { ...options, body };
     }
     // Reason shown in the server's audit log
-    if (english && typeof options.reason === 'string') options = { ...options, reason: toEnglish(options.reason) };
+    if (typeof options.reason === 'string') options = { ...options, reason: (english ? toEnglish(options.reason) : options.reason).replaceAll(KEEP, '') };
     return request(options);
   };
 }

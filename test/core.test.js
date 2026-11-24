@@ -83,5 +83,16 @@ test('translation: bot texts translated, member texts marked keep() left as writ
   assert.deepEqual(body.embeds[0], { description: 'Non', fields: [{ name: 'Before', value: 'Oui' }] });
 });
 
+test('translation: a moderator reason inside a bot sentence stays as written, without marker', () => {
+  const { createTranslator, translatePayload, keep, KEEP } = require('../src/dashboard/public/i18n');
+  const { t, keyedDictionary } = require('../src/core/i18n');
+  const tr = createTranslator(require('../src/dashboard/public/i18n-en'), { first: keyedDictionary() });
+  const sent = (reason) => translatePayload({ content: t('commands.ban.was_banned_reason', { tag: 'Bob', reason }) }, tr).content;
+  const kept = sent(keep('Non'));
+  assert.ok(kept.includes('Non') && !kept.includes(KEEP), kept);
+  assert.notEqual(kept, t('commands.ban.was_banned_reason', { tag: 'Bob', reason: 'Non' })); // the sentence itself is in English
+  assert.ok(!sent(t('commands.ban.no_reason')).includes(t('commands.ban.no_reason'))); // the default reason is translated
+});
+
 // The stores start save timers: stop the process once the tests are done
 after(() => setImmediate(() => process.exit(0)));

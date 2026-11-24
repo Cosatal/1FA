@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { modLog, targetError } = require('../features/moderation/moderation');
 const { addCase, notifySanction, caseLine } = require('../features/moderation/cases');
 const { t } = require('../core/i18n');
+const { keep } = require('../dashboard/public/i18n');
 
 // Discord doesn't allow timeouts longer than 28 days: this is the length of an "endless" mute
 const MAX = 28 * 24 * 3600 * 1000;
@@ -15,7 +16,7 @@ module.exports = {
     .addStringOption((opt) => opt.setName('raison').setDescription('La raison')),
   async execute(interaction) {
     const member = interaction.options.getMember('membre');
-    const reason = interaction.options.getString('raison') ?? t('commands.mute.no_reason');
+    const reason = keep(interaction.options.getString('raison')) ?? t('commands.mute.no_reason');
     if (!member) return interaction.reply({ content: t('commands.mute.this_member_isn_server'), flags: MessageFlags.Ephemeral });
     const error = targetError(interaction, member, (m) => m.moderatable);
     if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });

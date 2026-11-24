@@ -108,7 +108,12 @@
       base = kept;
     }
     // Text marked KEEP: kept as is, without the marker
-    const t = (text) => (typeof text === 'string' && text.startsWith(KEEP) ? kept(text.slice(KEEP.length)) : base(text));
+    // A marker can also sit inside a text (a moderator's reason in a bot sentence): that part isn't translated
+    // (it matches no dictionary entry), and every marker is removed before sending
+    const t = (text) => {
+      const out = typeof text === 'string' && text.startsWith(KEEP) ? kept(text.slice(KEEP.length)) : base(text);
+      return typeof out === 'string' ? out.replaceAll(KEEP, '') : out;
+    };
     if (typeof body.content === 'string') body.content = t(body.content);
     if (typeof body.title === 'string') body.title = t(body.title); // modal
     for (const e of body.embeds ?? []) {

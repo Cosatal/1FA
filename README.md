@@ -61,6 +61,21 @@ On a VPS: install Node.js, copy the folder (without `node_modules`), run `npm in
 [pm2](https://pm2.keymetrics.io/) (`pm2 start src/index.js --node-args="--env-file=.env"`). Put the dashboard's public address in
 `DASHBOARD_URL` (using https) and add `<DASHBOARD_URL>/callback` to the OAuth2 redirects.
 
+## Hosting with Docker
+
+With [Docker](https://docs.docker.com/engine/install/) installed, fill in `.env` (see Installation), then:
+
+```bash
+docker compose up -d                                        # build and start the bot
+docker compose run --rm bot node src/deploy-commands.js     # register the slash commands (once)
+docker compose logs -f                                      # see the logs
+```
+
+The data is kept in the `bot-data` Docker volume, across restarts and updates. To update: `git pull`, then
+`docker compose up -d --build`. To move an existing `data/` folder into it:
+`docker compose cp ./data/. bot:/data`, then `docker compose run --rm -u root bot chown -R node:node /data`
+and `docker compose restart` (the bot must have been started once).
+
 ## Updating
 
 `git pull`, `npm install`, then restart the bot. What changed in each version: [CHANGELOG.md](CHANGELOG.md).

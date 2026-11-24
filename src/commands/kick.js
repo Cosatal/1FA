@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { modLog, targetError } = require('../features/moderation/moderation');
 const { addCase, discardCase, notifySanction, caseLine } = require('../features/moderation/cases');
 const { t } = require('../core/i18n');
+const { keep } = require('../dashboard/public/i18n');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,7 +13,7 @@ module.exports = {
     .addStringOption((opt) => opt.setName('raison').setDescription('La raison')),
   async execute(interaction) {
     const member = interaction.options.getMember('membre');
-    const reason = interaction.options.getString('raison') ?? t('commands.kick.no_reason');
+    const reason = keep(interaction.options.getString('raison')) ?? t('commands.kick.no_reason');
     if (!member) return interaction.reply({ content: t('commands.kick.this_member_isn_server'), flags: MessageFlags.Ephemeral });
     const error = targetError(interaction, member, (m) => m.kickable);
     if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });

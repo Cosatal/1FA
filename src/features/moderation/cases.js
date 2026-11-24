@@ -90,7 +90,7 @@ function sanctionEmbed(guild, entry) {
     .addFields(
       { name: t('cases.field_case'), value: `#${entry.n}`, inline: true },
       ...(entry.until ? [{ name: t('cases.field_end'), value: `<t:${Math.floor(entry.until / 1000)}:R>`, inline: true }] : []),
-      { name: t('cases.field_reason'), value: keep(entry.reason || t('cases.no_reason'), 1024) },
+      { name: t('cases.field_reason'), value: (entry.reason || t('cases.no_reason')).slice(0, 1024) },
     )
     .setTimestamp(entry.at);
   if (guild.iconURL()) embed.setThumbnail(guild.iconURL());
@@ -157,7 +157,7 @@ function appealEmbed(entry) {
       { name: t('cases.field_member'), value: `<@${entry.userId}> · \`${entry.userTag}\``, inline: true },
       { name: t('cases.field_sanction'), value: `${ICONS[entry.type]} ${typeName(entry.type)}`, inline: true },
       { name: t('cases.field_by'), value: `<@${entry.modId}>`, inline: true },
-      { name: t('cases.field_reason'), value: keep(entry.reason || t('cases.no_reason'), 1024) },
+      { name: t('cases.field_reason'), value: (entry.reason || t('cases.no_reason')).slice(0, 1024) },
       { name: t('cases.field_date'), value: `<t:${Math.floor(entry.at / 1000)}:f>`, inline: true },
       { name: t('cases.field_appeal'), value: keep(entry.appeal.text, 1024) },
     )
