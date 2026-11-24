@@ -11,7 +11,8 @@
   "scripts": {
     "start": "node --env-file=.env src/index.js",
     "deploy": "node --env-file=.env src/deploy-commands.js",
-    "check:i18n": "node scripts/check-i18n.js"
+    "check:i18n": "node scripts/check-i18n.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.13.0",

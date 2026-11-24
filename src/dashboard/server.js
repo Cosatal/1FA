@@ -30,7 +30,7 @@ const { announceRoutes } = require('./announce');
 const { backupRoutes } = require('./backup');
 const { guildStats } = require('../features/stats');
 const { guildLang, setGuildLang } = require('../core/language');
-const { FEATURES } = require('../core/feature-config');
+const { FEATURES, giveableRole } = require('../core/feature-config');
 const { logActivity, queryActivity, SOURCES } = require('../core/activity');
 const { HEX, str, isUrl, isText } = require('./util');
 const { securityHeaders, sameOrigin, rateLimit } = require('./security');
@@ -282,7 +282,7 @@ function startDashboard(client) {
         .filter((r) => r.id !== g.id && !r.managed)
         .sort((a, b) => b.position - a.position)
         // editable: the bot can give this role (it is below its own)
-        .map((r) => ({ id: r.id, name: r.name, editable: r.editable, color: r.color ? r.hexColor : null })),
+        .map((r) => ({ id: r.id, name: r.name, editable: giveableRole(r), color: r.color ? r.hexColor : null })),
     });
   });
 
@@ -560,7 +560,7 @@ function parseCaptcha(body, guild) {
   const roleId = str(body.roleId);
   const enabled = body.enabled === true;
   if (enabled && !isText(guild, channelId)) return { error: 'Captcha : choisis le salon de vérification.' };
-  if (enabled && !guild.roles.cache.get(roleId)?.editable) return { error: 'Captcha : choisis un rôle d’accès placé sous celui du bot.' };
+  if (enabled && !giveableRole(guild.roles.cache.get(roleId))) return { error: 'Captcha : choisis un rôle d’accès placé sous celui du bot, sans permission de staff.' };
   if (!CAPTCHA_LEVELS.includes(body.level)) return { error: 'Captcha : niveau de sécurité inconnu.' };
   const int = (value, min, max, label) => {
     const n = Number(value);
@@ -733,13 +733,13 @@ function parseWelcome(body, guild) {
     // Embed fields can't be empty: the missing side is filled in
     embed.fields = embed.fields.map((f) => ({ ...f, name: f.name || '​', value: f.value || '​' }));
 
-    const editable = (id) => guild.roles.cache.get(id)?.editable;
+    const editable = (id) => giveableRole(guild.roles.cache.get(id));
     const dm = { enabled: body.dm?.enabled === true, message: text(body.dm?.message, 2000, 'Message privé') };
     if (dm.enabled && !dm.message) fail('Le message privé est vide.');
 
     const roles = [...new Set(Array.isArray(body.autoroles?.roles) ? body.autoroles.roles : [])];
     if (roles.length > 10) fail('10 rôles automatiques maximum.');
-    if (roles.some((id) => !editable(id))) fail('Rôles automatiques : choisis des rôles placés sous celui du bot.');
+    if (roles.some((id) => !editable(id))) fail('Rôles automatiques : choisis des rôles placés sous celui du bot, sans permission de staff.');
     const autoroles = { enabled: body.autoroles?.enabled === true, roles };
 
     const goodbye = { enabled: body.goodbye?.enabled === true, channelId: str(body.goodbye?.channelId), message: text(body.goodbye?.message, 2000, 'Message d’au revoir') };
