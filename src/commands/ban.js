@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { modLog, targetError, removeTempban } = require('../features/moderation/moderation');
 const { addCase, discardCase, notifySanction, caseLine } = require('../features/moderation/cases');
 const { t } = require('../core/i18n');
+const { keep } = require('../dashboard/public/i18n');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,7 +13,7 @@ module.exports = {
     .addStringOption((opt) => opt.setName('raison').setDescription('La raison')),
   async execute(interaction) {
     const user = interaction.options.getUser('membre');
-    const reason = interaction.options.getString('raison') ?? t('commands.ban.no_reason');
+    const reason = keep(interaction.options.getString('raison')) ?? t('commands.ban.no_reason');
     const error = targetError(interaction, interaction.options.getMember('membre'), (m) => m.bannable);
     if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
 

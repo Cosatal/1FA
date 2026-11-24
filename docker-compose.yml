@@ -1,0 +1,17 @@
+# Start: docker compose up -d · Logs: docker compose logs -f · Update: git pull && docker compose up -d --build
+# Register the slash commands once: docker compose run --rm bot node src/deploy-commands.js
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - bot-data:/data
+    ports:
+      # Dashboard. If you change DASHBOARD_PORT in .env, change both numbers here
+      - "3000:3000"
+
+volumes:
+  bot-data:

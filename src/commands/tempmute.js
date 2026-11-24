@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { modLog, targetError, parseDuration } = require('../features/moderation/moderation');
 const { addCase, notifySanction, caseLine } = require('../features/moderation/cases');
 const { t } = require('../core/i18n');
+const { keep } = require('../dashboard/public/i18n');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -13,7 +14,7 @@ module.exports = {
     .addStringOption((opt) => opt.setName('raison').setDescription('La raison')),
   async execute(interaction) {
     const member = interaction.options.getMember('membre');
-    const reason = interaction.options.getString('raison') ?? t('commands.tempmute.no_reason');
+    const reason = keep(interaction.options.getString('raison')) ?? t('commands.tempmute.no_reason');
     const ms = parseDuration(interaction.options.getString('durée'));
     if (!ms || ms > 28 * 24 * 3600 * 1000) {
       return interaction.reply({ content: t('commands.tempmute.unreadable_or_too_long_duration'), flags: MessageFlags.Ephemeral });

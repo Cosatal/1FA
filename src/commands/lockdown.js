@@ -3,6 +3,7 @@ const { parseDuration, modLog } = require('../features/moderation/moderation');
 const { lockChannel, lockServer, lockEmbed } = require('../features/moderation/lockdown');
 const { logActivity } = require('../core/activity');
 const { t } = require('../core/i18n');
+const { keep } = require('../dashboard/public/i18n');
 
 const CHANNEL_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum, ChannelType.GuildVoice, ChannelType.GuildStageVoice];
 
@@ -28,7 +29,7 @@ module.exports = {
         .addStringOption((opt) => opt.setName('raison').setDescription('La raison').setMaxLength(500)),
     ),
   async execute(interaction) {
-    const reason = interaction.options.getString('raison') ?? t('commands.lockdown.no_reason');
+    const reason = keep(interaction.options.getString('raison')) ?? t('commands.lockdown.no_reason');
     const durationText = interaction.options.getString('durée');
     const ms = durationText ? parseDuration(durationText) : null;
     if (durationText && !ms) return interaction.reply({ content: t('commands.lockdown.unreadable_duration'), flags: MessageFlags.Ephemeral });

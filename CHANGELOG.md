@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Docker: `Dockerfile` and `docker-compose.yml` (see README, "Hosting with Docker").
+- On English servers, a reason typed by a moderator (`/ban`, `/kick`, `/mute`, `/warn`…) is no longer translated,
+  and the default reason ("No reason") is now translated in case messages.
+
 ## 1.2.0
 
 ### Security

@@ -2,6 +2,7 @@ const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require('disc
 const { modLog, removeTempban } = require('../features/moderation/moderation');
 const { addCase, caseLine } = require('../features/moderation/cases');
 const { t } = require('../core/i18n');
+const { keep } = require('../dashboard/public/i18n');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,7 +13,7 @@ module.exports = {
     .addStringOption((opt) => opt.setName('raison').setDescription('La raison')),
   async execute(interaction) {
     const id = interaction.options.getString('id').replace(/\D/g, '');
-    const reason = interaction.options.getString('raison') ?? t('commands.unban.no_reason');
+    const reason = keep(interaction.options.getString('raison')) ?? t('commands.unban.no_reason');
     const user = await interaction.guild.members.unban(id, reason).catch(() => null);
     if (!user) return interaction.reply({ content: t('commands.unban.no_banned_member_with_this'), flags: MessageFlags.Ephemeral });
 
