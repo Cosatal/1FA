@@ -1,5 +1,5 @@
 const { PROVIDERS, keyFor, aiUnavailableReason, resolveAi, autoModel, generateAi, NO_AI } = require('./ai-support');
-const { getFeature } = require('../../core/feature-config');
+const { getFeature, peekFeature } = require('../../core/feature-config');
 const { guildLang } = require('../../core/language');
 const { KEEP } = require('../../dashboard/public/i18n');
 const { every } = require('../../core/scheduler');
@@ -101,7 +101,7 @@ async function handleFlagReaction(reaction, user) {
   const lang = FLAGS[reaction.emoji.name];
   if (!lang || user.bot || !reaction.message.guild) return;
   // Settings checked before fetching the message (no call to Discord on servers without this tool)
-  const config = getFeature(reaction.message.guild.id, 'aiTools');
+  const config = peekFeature(reaction.message.guild.id, 'aiTools');
   if (!config.enabled || !config.reactions) return;
   const message = reaction.message.partial ? await reaction.message.fetch().catch(() => null) : reaction.message;
   if (!message?.guild || !message.content?.trim() || message.author.bot) return;

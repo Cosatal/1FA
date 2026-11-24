@@ -1,5 +1,5 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js');
-const { getFeature } = require('../../core/feature-config');
+const { getFeature, peekFeature } = require('../../core/feature-config');
 const { logActivity } = require('../../core/activity');
 const { PANEL_COLOR } = require('../../core/credits');
 const { guildLang } = require('../../core/language');
@@ -49,7 +49,7 @@ function watched(message, config) {
 }
 
 function queueAiModeration(message) {
-  const config = getFeature(message.guild?.id ?? '', 'aiModeration');
+  const config = peekFeature(message.guild?.id ?? '', 'aiModeration');
   if (!config.enabled || !config.channelId || !watched(message, config)) return;
   const queue = queues.get(message.guild.id) ?? { items: [], since: Date.now() };
   queue.items.push(message);
