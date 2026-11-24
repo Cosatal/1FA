@@ -98,7 +98,8 @@ async function importBackup(guild, data, { parseTickets, parseWelcome, parseCapt
 function backupRoutes(app, auth, guildAccess, parsers) {
   app.get('/api/guilds/:id/backup', auth, guildAccess, (req, res) => {
     const name = req.guild.name.replace(/[^\p{L}\p{N}_-]+/gu, '-').slice(0, 40) || 'serveur';
-    res.set('Content-Disposition', `attachment; filename="sauvegarde-${name}-${new Date().toISOString().slice(0, 10)}.json"`);
+    // attachment() encodes the name: a non-Latin server name (Cyrillic, CJK…) would be refused in a raw header
+    res.attachment(`sauvegarde-${name}-${new Date().toISOString().slice(0, 10)}.json`);
     res.json(exportBackup(req.guild));
   });
 
