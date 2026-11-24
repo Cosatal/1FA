@@ -75,6 +75,11 @@ the saved keys and passwords have to be entered again.
 Want to change something or add a feature? Read [ARCHITECTURE.md](ARCHITECTURE.md): it explains how the project is organized,
 which file does what, and how to add a command or a feature.
 
+## Credits
+
+Some upgrades and fixes (dependencies, performance, security, tests) were made with the help of
+[Claude](https://claude.com/claude-code) (Anthropic).
+
 ## License
 
 Released under the [PolyForm Noncommercial License 1.0.0](LICENSE).

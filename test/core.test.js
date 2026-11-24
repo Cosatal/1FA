@@ -56,5 +56,23 @@ test('ticket index: written after a short delay, and complete', async () => {
   fs.rmSync(path.dirname(file), { recursive: true, force: true });
 });
 
+test('openCounts matches the conversation list', async () => {
+  const guildId = '900000000000000005';
+  const open = (id, userId, from) => {
+    transcripts.createTicket({ guildId, id, user: { id: userId, tag: userId }, type: 'Aide' });
+    return transcripts.addMessage(guildId, id, { from, content: 'x' });
+  };
+  await open('900000000000000011', 'a', 'member');
+  await open('900000000000000012', 'b', 'staff');
+  await open('900000000000000013', 'c', 'member');
+  transcripts.updateTicket(guildId, '900000000000000013', { closedAt: Date.now() });
+  const list = transcripts.listConversations(guildId, { status: 'open' });
+  const expected = { open: list.length, waiting: list.filter((c) => c.open.lastFrom !== 'staff').length };
+  assert.deepEqual(transcripts.openCounts(guildId), expected);
+  assert.deepEqual(expected, { open: 2, waiting: 1 });
+  flushStores();
+  fs.rmSync(path.join(DATA_DIR, 'transcripts', guildId), { recursive: true, force: true });
+});
+
 // The stores start save timers: stop the process once the tests are done
 after(() => setImmediate(() => process.exit(0)));
