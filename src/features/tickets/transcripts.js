@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { DATA_DIR, readJson, writeJson } = require('../../core/store');
+const { DATA_DIR, readJson, writeJson, scheduleWrite } = require('../../core/store');
 
 // Tickets and their whole conversation, managed in the staff panel (/staff).
 //   data/transcripts/<guildId>/index.json       : summary of each ticket (for the list and search)
@@ -63,7 +63,9 @@ function save(ticket) {
   const i = list.findIndex((t) => t.id === ticket.id);
   if (i === -1) list.push(summarize(ticket));
   else list[i] = summarize(ticket);
-  writeJson(path.join(guildDir(ticket.guildId), 'index.json'), list, false);
+  // The index holds every ticket of the server: written shortly after, once for several close messages (store.js)
+  const file = path.join(guildDir(ticket.guildId), 'index.json');
+  scheduleWrite(file, () => writeJson(file, list, false));
 }
 
 // Copies attachments into the ticket's folder. Each item: a Discord attachment (url)

@@ -36,6 +36,7 @@ src/
 ├── commands/         one file per slash command
 └── dashboard/        the web dashboard
     └── public/       the pages sent to the browser (HTML, CSS, JS)
+test/                 tests of the risky rules (npm test): roles, hierarchy, lockdown, SSRF, encryption…
 ```
 
 ### `src/core/`: shared tools
