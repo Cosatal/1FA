@@ -9,6 +9,7 @@ const reactionRoles = require('../features/reaction-roles');
 const giveaways = require('../features/giveaways');
 const alerts = require('../features/alerts');
 const { getSetting, updateSettings, settingSource } = require('../core/settings');
+const { giveableRole } = require('../core/feature-config');
 
 // Bot owner (or member of the owning team in the Developer Portal): the only one who can set API keys
 async function isBotOwner(client, userId) {
@@ -36,7 +37,7 @@ const withLanguages = (config) => ({ ...config, presets: { ...config.presets, la
 // Roles the bot can give (below its own role, not managed by an integration)
 const assignableRoles = (guild) =>
   guild.roles.cache
-    .filter((r) => r.id !== guild.id && !r.managed && r.editable)
+    .filter(giveableRole)
     .sort((a, b) => b.position - a.position)
     .map((r) => ({ id: r.id, name: r.name, color: r.hexColor }));
 
@@ -316,7 +317,7 @@ function parsePanel(body, guild) {
     const roleId = str(r?.roleId);
     const emoji = str(r?.emoji);
     const label = str(r?.label);
-    if (!editable.has(roleId)) fail(`Rôle ${i + 1} : choisis un rôle que le bot peut donner.`);
+    if (!editable.has(roleId)) fail(`Rôle ${i + 1} : choisis un rôle que le bot peut donner (sous son rôle, sans permission de staff).`);
     if (seen.has(roleId)) fail(`Rôle ${i + 1} : ce rôle est déjà dans le panneau.`);
     seen.add(roleId);
     if (emoji && !isEmoji(emoji)) fail(`Rôle ${i + 1} : emoji invalide (un seul emoji).`);

@@ -639,6 +639,7 @@
     "bot_needs_manage_server_permission": "The bot needs the “Manage Server” permission to manage AutoMod.",
     "by": "By",
     "can_sanction_this_member_their": "I can’t sanction this member: their role is above mine.",
+    "member_above_you": "You can’t sanction this member: their highest role is equal to or above yours.",
     "can_sanction_yourself": "You can’t sanction yourself.",
     "discord_invites": "Discord invites",
     "don_have_role_needed_for": "You don’t have the role needed for this command.",
