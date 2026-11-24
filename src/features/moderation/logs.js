@@ -1,6 +1,7 @@
 const { EmbedBuilder, Events, AuditLogEvent } = require('discord.js');
 const { sendLog } = require('./moderation');
 const { t } = require('../../core/i18n');
+const { keep } = require('../../dashboard/public/i18n');
 
 // Server logs: each event enabled in the dashboard is sent to the logs channel (moderation.js).
 // needs: required privileged intent ("members" = Server Members Intent, "content" = Message Content Intent)
@@ -58,7 +59,7 @@ function registerLogs(client) {
   const INVITE = /(discord\.gg|discord(app)?\.com\/invite)\/[\w-]+/i;
   on(Events.MessageCreate, async (m) => {
     if (m.guild && !m.author.bot && INVITE.test(m.content)) {
-      await sendLog(m.guild, 'invitePosted', () => embed('edit', t('logs.invite_posted_2'), { user: m.author, description: m.content, fields: [{ name: t('logs.channel'), value: `${m.channel} · [voir](${m.url})` }] }));
+      await sendLog(m.guild, 'invitePosted', () => embed('edit', t('logs.invite_posted_2'), { user: m.author, description: keep(m.content, 4000), fields: [{ name: t('logs.channel'), value: `${m.channel} · [voir](${m.url})` }] }));
     }
   });
   on(Events.MessageUpdate, async (before, after) => {
@@ -67,8 +68,8 @@ function registerLogs(client) {
       user: after.author,
       fields: [
         { name: t('logs.channel'), value: t('logs.view_message', { channel: after.channel, url: after.url }) },
-        { name: t('logs.before'), value: before.partial ? t('logs.message_too_old_content_unknown') : before.content },
-        { name: t('logs.after'), value: after.content },
+        { name: t('logs.before'), value: before.partial ? t('logs.message_too_old_content_unknown') : keep(before.content, 1024) },
+        { name: t('logs.after'), value: keep(after.content, 1024) },
       ],
     }));
   });
@@ -77,7 +78,7 @@ function registerLogs(client) {
     const files = [...(m.attachments?.values() ?? [])].map((a) => a.name).join(', ');
     await sendLog(m.guild, 'messageDelete', () => embed('remove', t('logs.message_deleted_2'), {
       user: m.author,
-      description: m.partial ? t('logs.message_too_old_content_unknown') : m.content || '*(sans texte)*',
+      description: m.partial ? t('logs.message_too_old_content_unknown') : keep(m.content, 4000) || '*(sans texte)*',
       fields: [{ name: t('logs.channel'), value: `${m.channel}` }, ...(files ? [{ name: t('logs.files'), value: files }] : [])],
     }));
   });

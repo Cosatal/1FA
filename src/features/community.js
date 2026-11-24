@@ -181,7 +181,7 @@ async function updateStar(reaction) {
   const embed = new EmbedBuilder()
     .setColor(0xf5a524)
     .setAuthor({ name: message.member?.displayName ?? message.author.username, iconURL: message.author.displayAvatarURL() })
-    .setDescription(message.content?.slice(0, 4000) || null)
+    .setDescription(keep(message.content, 4000) || null)
     .addFields({ name: 'Source', value: t('community.jump_message', { url: message.url }) })
     .setTimestamp(message.createdTimestamp);
   if (image) embed.setImage(image);
